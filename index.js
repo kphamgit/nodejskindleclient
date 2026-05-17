@@ -6,15 +6,20 @@ const { PrismaClient } = require('@prisma/client');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
 
 const dbUrl = new URL(process.env.DATABASE_URL);
+const isProduction = process.env.NODE_ENV === 'production';
 const adapter = new PrismaMariaDb({
   host: dbUrl.hostname,
   port: parseInt(dbUrl.port),
   user: dbUrl.username,
   password: dbUrl.password,
   database: dbUrl.pathname.slice(1),
-  ssl: process.env.NODE_ENV === 'production',
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
 });
 const prisma = new PrismaClient({ adapter });
+
+prisma.$connect()
+  .then(() => console.log('Database connected successfully'))
+  .catch(err => console.error('Database connection failed:', err.message));
 const app = express();
 
 app.use(cors());
