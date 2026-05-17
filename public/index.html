@@ -28,7 +28,8 @@
   <ul id="user-list"></ul>
 
   <script>
-    const BASE = 'http://localhost:3000';
+    const BASE = ''; // words both local and deployed (production will automatically set 
+    // this to the correct DATABASE_URL)
 
     async function loadUsers() {
       const res = await fetch(`${BASE}/users`);
