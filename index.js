@@ -5,7 +5,15 @@ const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
 
-const adapter = new PrismaMariaDb(process.env.DATABASE_URL);
+const dbUrl = new URL(process.env.DATABASE_URL);
+const adapter = new PrismaMariaDb({
+  host: dbUrl.hostname,
+  port: parseInt(dbUrl.port),
+  user: dbUrl.username,
+  password: dbUrl.password,
+  database: dbUrl.pathname.slice(1),
+  ssl: process.env.NODE_ENV === 'production',
+});
 const prisma = new PrismaClient({ adapter });
 const app = express();
 
