@@ -24,6 +24,10 @@ app.get('/users', async (req, res) => {
   try {
     console.log('Fetching users from database...');
     const users = await prisma.user.findMany();
+    if (users.length === 0) {
+      console.log('No users found in the database.');
+      return res.status(404).json({ message: 'No users found' });
+    }
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
