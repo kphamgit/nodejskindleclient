@@ -1,0 +1,27 @@
+{
+  "name": "nodejskindle",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "heroku-postbuild": "prisma generate",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/adapter-mariadb": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "mariadb": "^3.5.2",
+    "nodemon": "^3.1.14"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "prisma": "^7.8.0"
+  }
+}
