@@ -14,6 +14,7 @@ const adapter = new PrismaMariaDb({
   password: dbUrl.password,
   database: dbUrl.pathname.slice(1),
   ssl: isProduction ? { rejectUnauthorized: false } : false,
+  connectionLimit: 5,
 });
 const prisma = new PrismaClient({ adapter });
 
