@@ -30,6 +30,7 @@ app.get('/users', async (req, res) => {
     }
     res.json(users);
   } catch (error) {
+    console.error('Error fetching users:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
