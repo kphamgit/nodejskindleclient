@@ -1,11 +1,11 @@
-require('dotenv').config();
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
-const { PrismaClient } = require('@prisma/client');
-const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+import 'dotenv/config';
+import express from 'express';
+import path from 'path';
+import cors from 'cors';
+import { PrismaClient } from '@prisma/client';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
-const dbUrl = new URL(process.env.DATABASE_URL);
+const dbUrl = new URL(process.env.DATABASE_URL!);
 const isProduction = process.env.NODE_ENV === 'production';
 const adapter = new PrismaMariaDb({
   host: dbUrl.hostname,
@@ -20,7 +20,8 @@ const prisma = new PrismaClient({ adapter });
 
 prisma.$connect()
   .then(() => console.log('Database connected successfully'))
-  .catch(err => console.error('Database connection failed:', err.message));
+  .catch(err => console.error('Database connection failed:', (err as Error).message));
+
 const app = express();
 
 app.use(cors());
@@ -31,10 +32,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Test route to get all users from JawsDB
-//http://localhost:3000/users
 app.get('/users', async (req, res) => {
-    console.log('Received request to fetch users');
+  console.log('Received request to fetch users');
   try {
     console.log('Fetching users from database...');
     const users = await prisma.user.findMany();
@@ -44,12 +43,11 @@ app.get('/users', async (req, res) => {
     }
     res.json(users);
   } catch (error) {
-    console.error('Error fetching users:', error.message);
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching users:', (error as Error).message);
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 
-// Test route to create a new user
 app.post('/users', async (req, res) => {
   console.log('Received request to create user:', req.body);
   const { email, name } = req.body;
@@ -61,12 +59,12 @@ app.post('/users', async (req, res) => {
     console.log('User created successfully:', newUser);
     res.status(201).json(newUser);
   } catch (error) {
-    console.error('Error creating user:', error.message);
-    res.status(400).json({ error: error.message });
+    console.error('Error creating user:', (error as Error).message);
+    res.status(400).json({ error: (error as Error).message });
   }
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
