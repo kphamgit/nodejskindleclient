@@ -26,5 +26,35 @@ model User {
   id        Int      @id @default(autoincrement())
   name      String?
   password  String
+  role      String   @default("student")
   createdAt DateTime @default(now())
+}
+
+model Book {
+  id       Int       @id @default(autoincrement())
+  title    String
+  chapters Chapter[]
+}
+
+model Chapter {
+  id       Int       @id @default(autoincrement())
+  title    String
+  bookId   Int
+  book     Book      @relation(fields: [bookId], references: [id])
+  sections Section[]
+}
+
+model Section {
+  id         Int         @id @default(autoincrement())
+  title      String
+  chapterId  Int
+  chapter    Chapter     @relation(fields: [chapterId], references: [id])
+  paragraphs Paragraph[]
+}
+
+model Paragraph {
+  id        Int     @id @default(autoincrement())
+  content   String  @db.Text
+  sectionId Int
+  section   Section @relation(fields: [sectionId], references: [id])
 }

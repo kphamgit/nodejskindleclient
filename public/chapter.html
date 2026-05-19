@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chapter</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; }
+    a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; }
+    a.back:hover { text-decoration: underline; }
+    input, textarea { display: block; width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 8px 16px; cursor: pointer; margin-right: 8px; }
+    p.message { font-size: 0.9em; margin-top: 8px; }
+    ul.section-list { list-style: none; padding: 0; }
+    ul.section-list > li { border-bottom: 1px solid #eee; }
+    .section-header { padding: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+    .section-name { cursor: pointer; font-weight: 500; color: #1a73e8; text-decoration: underline; background: none; border: none; font-size: 1em; text-align: left; }
+    .section-name:hover { color: #0c47a1; }
+    .edit-input { display: none; flex: 1; margin-right: 8px; }
+    .section-panel { display: none; padding: 8px 0 12px 12px; background: #fafafa; border-radius: 4px; margin-bottom: 8px; }
+    .section-panel.open { display: block; }
+    .paragraph-form { margin-bottom: 8px; }
+    ul.paragraph-list { list-style: none; padding: 0; margin: 0; }
+    ul.paragraph-list li { padding: 6px 0; border-bottom: 1px solid #eee; }
+    ul.paragraph-list li a { color: #1a73e8; text-decoration: none; }
+    ul.paragraph-list li a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <a class="back" id="back-link" href="#">← Back</a>
+  <h1 id="chapter-title">Loading...</h1>
+
+  <div id="teacher-create" style="display:none">
+    <h2>Add Section</h2>
+    <input type="text" id="section-title" placeholder="Section title" />
+    <button onclick="createSection()">Add</button>
+    <p class="message" id="create-message"></p>
+  </div>
+
+  <h2>Sections</h2>
+  <ul class="section-list" id="section-list"></ul>
+
+  <script>
+    const BASE = '';
+    const params = new URLSearchParams(window.location.search);
+    const chapterId = Number(params.get('id'));
+    const role = params.get('role');
+
+    if (role === 'teacher') {
+      document.getElementById('teacher-create').style.display = 'block';
+    }
+
+    async function loadChapter() {
+      const res = await fetch(`${BASE}/chapters/${chapterId}`);
+      const chapter = await res.json();
+      document.getElementById('chapter-title').textContent = chapter.title;
+      document.getElementById('back-link').href = `/book.html?id=${chapter.bookId}&role=${role}`;
+      renderSections(chapter.sections);
+    }
+
+    function renderSections(sections) {
+      const list = document.getElementById('section-list');
+      if (!sections.length) { list.innerHTML = '<li style="padding:10px 0">No sections yet.</li>'; return; }
+
+      list.innerHTML = sections.map(s => `
+        <li id="section-${s.id}">
+          <div class="section-header">
+            <button class="section-name" onclick="toggleSection(${s.id})">${s.title}</button>
+            ${role === 'teacher' ? `
+              <input class="edit-input" id="edit-${s.id}" value="${s.title}" />
+              <div>
+                <button onclick="startEdit(${s.id})">Edit</button>
+                <button onclick="saveEdit(${s.id})" style="display:none" id="save-${s.id}">Save</button>
+                <button onclick="deleteSection(${s.id})">Delete</button>
+              </div>
+            ` : ''}
+          </div>
+          <div class="section-panel" id="panel-${s.id}">
+            ${role === 'teacher' ? `
+              <div class="paragraph-form">
+                <textarea id="para-input-${s.id}" rows="3" placeholder="Paragraph content"></textarea>
+                <button onclick="createParagraph(${s.id})">Add Paragraph</button>
+                <p class="message" id="para-msg-${s.id}"></p>
+              </div>
+            ` : ''}
+            <ul class="paragraph-list" id="para-list-${s.id}">
+              <li>Loading...</li>
+            </ul>
+          </div>
+        </li>
+      `).join('');
+    }
+
+    async function toggleSection(id) {
+      const panel = document.getElementById(`panel-${id}`);
+      const isOpen = panel.classList.contains('open');
+      if (isOpen) {
+        panel.classList.remove('open');
+      } else {
+        panel.classList.add('open');
+        await loadParagraphs(id);
+      }
+    }
+
+    async function loadParagraphs(sectionId) {
+      const res = await fetch(`${BASE}/sections/${sectionId}`);
+      const section = await res.json();
+      const list = document.getElementById(`para-list-${sectionId}`);
+      const paragraphs = section.paragraphs;
+
+      if (!paragraphs.length) {
+        list.innerHTML = '<li>No paragraphs yet.</li>';
+        return;
+      }
+
+      list.innerHTML = paragraphs.map(p =>
+        `<li><a href="/paragraph.html?id=${p.id}&role=${role}&chapterId=${chapterId}">${p.content.substring(0, 60)}${p.content.length > 60 ? '...' : ''}</a></li>`
+      ).join('');
+    }
+
+    async function createParagraph(sectionId) {
+      const content = document.getElementById(`para-input-${sectionId}`).value.trim();
+      const msg = document.getElementById(`para-msg-${sectionId}`);
+      if (!content) { msg.textContent = 'Content is required.'; return; }
+
+      const res = await fetch(`${BASE}/paragraphs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, sectionId }),
+      });
+
+      if (res.ok) {
+        msg.textContent = 'Paragraph added!';
+        document.getElementById(`para-input-${sectionId}`).value = '';
+        await loadParagraphs(sectionId);
+      } else {
+        const err = await res.json();
+        msg.textContent = err.error || 'Something went wrong.';
+      }
+    }
+
+    function startEdit(id) {
+      document.querySelector(`#section-${id} .section-name`).style.display = 'none';
+      document.getElementById(`edit-${id}`).style.display = 'inline-block';
+      document.getElementById(`save-${id}`).style.display = 'inline';
+    }
+
+    async function saveEdit(id) {
+      const title = document.getElementById(`edit-${id}`).value.trim();
+      const res = await fetch(`${BASE}/sections/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      if (res.ok) loadChapter();
+    }
+
+    async function createSection() {
+      const title = document.getElementById('section-title').value.trim();
+      const msg = document.getElementById('create-message');
+      if (!title) { msg.textContent = 'Title is required.'; return; }
+
+      const res = await fetch(`${BASE}/sections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, chapterId }),
+      });
+
+      if (res.ok) {
+        msg.textContent = 'Section added!';
+        document.getElementById('section-title').value = '';
+        loadChapter();
+      } else {
+        const err = await res.json();
+        msg.textContent = err.error || 'Something went wrong.';
+      }
+    }
+
+    async function deleteSection(id) {
+      const res = await fetch(`${BASE}/sections/${id}`, { method: 'DELETE' });
+      if (res.ok) loadChapter();
+    }
+
+    loadChapter();
+  </script>
+</body>
+</html>

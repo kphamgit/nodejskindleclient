@@ -24,12 +24,12 @@ router.get('/', async (_req, res) => {
 
 router.post('/', async (req, res) => {
     console.log('Received request to create user:', req.body);
-    const { name, password } = req.body;
+    const { name, password, role } = req.body;
     try {
       console.log('Creating user with name:', name);
       const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
       const newUser = await prisma.user.create({
-        data: { name, password: hashedPassword },
+        data: { name, password: hashedPassword, role },
       });
       console.log('User created successfully:', newUser);
       res.status(201).json(newUser);
@@ -38,18 +38,5 @@ router.post('/', async (req, res) => {
       res.status(400).json({ error: (error as Error).message });
     }
   });
-
-router.post('/login', async (req, res) => {
-  const { name, password } = req.body;
-  try {
-    const user = await prisma.user.findFirst({ where: { name } });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: 'Invalid name or password.' });
-    }
-    res.json({ message: 'Login successful', user });
-  } catch (error) {
-    res.status(500).json({ error: (error as Error).message });
-  }
-});
 
 export default router;

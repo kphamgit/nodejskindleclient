@@ -29,6 +29,10 @@
     <h2>Create User</h2>
     <input type="text" id="create-name" placeholder="Name (optional)" />
     <input type="text" id="create-password" placeholder="Password" />
+    <select id="create-role" style="display:block;width:100%;padding:8px;margin-bottom:8px;border:1px solid #ccc;border-radius:4px;">
+      <option value="student">Student</option>
+      <option value="teacher">Teacher</option>
+    </select>
     <button class="submit" onclick="createUser()">Create</button>
     <p class="message" id="create-message"></p>
   </section>
@@ -54,6 +58,7 @@
     async function createUser() {
       const name = document.getElementById('create-name').value.trim();
       const password = document.getElementById('create-password').value.trim();
+      const role = document.getElementById('create-role').value;
       const msg = document.getElementById('create-message');
 
       if (!password) { msg.textContent = 'Password is required.'; return; }
@@ -61,13 +66,14 @@
       const res = await fetch(`${BASE}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name || undefined, password }),
+        body: JSON.stringify({ name: name || undefined, password, role }),
       });
 
       if (res.ok) {
         msg.textContent = 'User created!';
         document.getElementById('create-name').value = '';
         document.getElementById('create-password').value = '';
+        document.getElementById('create-role').value = 'student';
       } else {
         const err = await res.json();
         msg.textContent = err.error || 'Something went wrong.';
@@ -88,6 +94,8 @@
       });
 
       if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('user', JSON.stringify(data.user));
         window.location.href = '/dashboard.html';
       } else {
         const err = await res.json();
