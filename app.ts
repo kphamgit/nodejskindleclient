@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
+import routes from './routes';
 import { PrismaClient } from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
@@ -31,6 +32,8 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 app.get('/', (_req, res) => {
   res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
 });
+
+app.use('/', routes);
 
 app.get('/users', async (_req, res) => {
   console.log('Received request to fetch users');
