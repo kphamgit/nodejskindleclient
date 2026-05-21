@@ -10,12 +10,59 @@
     body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; line-height: 1.7; }
     a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; }
     a.back:hover { text-decoration: underline; }
-    .content { font-size: 1.05em; color: #333; }
+    .content { font-size: 1.05em; color: #333; line-height: 2; }
+    .blank-btn {
+      display: inline-block;
+      width: 60px;
+      height: 22px;
+      background: #f0f0f0;
+      border: none;
+      border-bottom: 2px solid #333;
+      cursor: pointer;
+      vertical-align: middle;
+      margin: 0 2px;
+    }
+    .blank-btn:hover { background: #e0e0e0; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-box {
+      background: #fff;
+      border-radius: 10px;
+      padding: 28px 32px;
+      min-width: 240px;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    }
+    .modal-hint { font-size: 1em; color: #444; margin: 0 0 16px; }
+    .modal-word { font-size: 1.5em; font-weight: bold; color: #1a73e8; display: none; margin: 0 0 16px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: center; }
+    .modal-actions button { padding: 8px 20px; font-size: 1em; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; }
+    .modal-actions .reveal-btn { background: #1a73e8; color: #fff; border-color: #1a73e8; }
   </style>
 </head>
 <body>
   <a class="back" id="back-link" href="#">← Back</a>
-  <p class="content" id="content-text"></p>
+  <div class="content" id="content-student"></div>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal-box">
+      <p class="modal-hint" id="modal-hint"></p>
+      <p class="modal-word" id="modal-word"></p>
+      <div class="modal-actions">
+        <button class="reveal-btn" id="reveal-btn" onclick="revealWord()">Reveal</button>
+        <button onclick="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const BASE = '';
@@ -26,10 +73,64 @@
 
     document.getElementById('back-link').href = `/chapter.html?id=${chapterId}&role=${role}`;
 
+    function tokenize(text) {
+      return text.match(/\[[^\]]*\][.,!?;:]*|\S+/g) || [];
+    }
+
+    function parseToken(token) {
+      const m = token.match(/^\[([^\]]+)\]([.,!?;:]*)$/);
+      if (m) {
+        const starIdx = m[1].indexOf('*');
+        if (starIdx !== -1) {
+          return { word: m[1].slice(0, starIdx), hint: m[1].slice(starIdx + 1), punct: m[2], bracketed: true };
+        }
+        return { word: m[1], hint: '', punct: m[2], bracketed: true };
+      }
+      const wm = token.match(/^(.+?)([.,!?;:]*)$/);
+      return wm
+        ? { word: wm[1], hint: '', punct: wm[2], bracketed: false }
+        : { word: token, hint: '', punct: '', bracketed: false };
+    }
+
+    function renderStudentContent(text) {
+      const container = document.getElementById('content-student');
+      container.innerHTML = tokenize(text).map(token => {
+        const { word, hint, punct, bracketed } = parseToken(token);
+        if (bracketed) {
+          const safeWord = word.replace(/"/g, '&quot;');
+          const safeHint = hint.replace(/"/g, '&quot;');
+          return `<button class="blank-btn" data-word="${safeWord}" data-hint="${safeHint}" onclick="openModal(this)"></button>${punct ? `<span>${punct}</span>` : ''}`;
+        }
+        return `<span>${word}${punct}</span>`;
+      }).join(' ');
+    }
+
+    function openModal(btn) {
+      const hint = btn.dataset.hint;
+      document.getElementById('modal-hint').textContent = hint || 'What is this word?';
+      document.getElementById('modal-word').textContent = btn.dataset.word;
+      document.getElementById('modal-word').style.display = 'none';
+      document.getElementById('reveal-btn').style.display = 'inline-block';
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function revealWord() {
+      document.getElementById('modal-word').style.display = 'block';
+      document.getElementById('reveal-btn').style.display = 'none';
+    }
+
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+    }
+
     async function loadParagraph() {
       const res = await fetch(`${BASE}/paragraphs/${paragraphId}`);
       const paragraph = await res.json();
-      document.getElementById('content-text').textContent = paragraph.content;
+      if (role === 'student') {
+        renderStudentContent(paragraph.content);
+      } else {
+        document.getElementById('content-student').textContent = paragraph.content;
+      }
     }
 
     loadParagraph();
