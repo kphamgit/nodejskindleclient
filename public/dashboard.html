@@ -6,6 +6,7 @@
   <title>Dashboard</title>
   <style>
     * { box-sizing: border-box; }
+    a { font-size: 20px; }
     body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; }
     nav { display: flex; gap: 8px; margin-bottom: 32px; border-bottom: 2px solid #eee; }
     nav button { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 1em; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; }
@@ -20,6 +21,7 @@
   </style>
 </head>
 <body>
+  <a href="/index.html" style="display:inline-block;margin-bottom:16px;color:#555;text-decoration:none;">← Home</a>
   <h1>Dashboard</h1>
   <p id="welcome"></p>
 
@@ -28,10 +30,12 @@
   </nav>
 
   <section id="books" class="active">
-    <h2>Create Book</h2>
-    <input type="text" id="book-title" placeholder="Title" />
-    <button class="submit" onclick="createBook()">Create</button>
-    <p class="message" id="book-message"></p>
+    <div id="create-book-panel">
+      <h2>Create Book</h2>
+      <input type="text" id="book-title" placeholder="Title" />
+      <button class="submit" onclick="createBook()">Create</button>
+      <p class="message" id="book-message"></p>
+    </div>
 
     <h2>All Books</h2>
     <button class="submit" onclick="loadBooks()">Refresh</button>
@@ -40,11 +44,22 @@
 
   <script>
     const BASE = '';
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    const ROLE = user.role || 'student';
+
+    function parseToken(token) {
+      try { return JSON.parse(atob(token.split('.')[1])); }
+      catch { return null; }
+    }
+
+    const token = sessionStorage.getItem('token');
+    const payload = parseToken(token) || {};
+    const ROLE = payload.role || 'student';
 
     document.getElementById('welcome').textContent =
-      `Welcome, ${user.name || 'Guest'} — Role: ${ROLE}`;
+      `Welcome, ${payload.name || 'Guest'} — Role: ${ROLE}`;
+
+    if (ROLE !== 'teacher') {
+      document.getElementById('create-book-panel').style.display = 'none';
+    }
 
     function showSection(id, btn) {
       document.querySelectorAll('section').forEach(s => s.classList.remove('active'));

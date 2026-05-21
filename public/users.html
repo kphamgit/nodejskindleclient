@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Users</title>
+  <style>
+    * { box-sizing: border-box; }
+    a { font-size: 20px; }
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; }
+    a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; }
+    a.back:hover { text-decoration: underline; }
+    input { display: block; width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    select { display: block; width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 8px 16px; cursor: pointer; }
+    button.delete { padding: 4px 12px; color: #c00; border: 1px solid #c00; background: none; border-radius: 4px; }
+    button.delete:hover { background: #c00; color: #fff; }
+    p.message { font-size: 0.9em; margin-top: 8px; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 10px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .create-form { margin-bottom: 32px; display: none; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/index.html">← Back</a>
+  <h1>Users</h1>
+
+  <button onclick="toggleForm()">Create User</button>
+
+  <div class="create-form" id="create-form">
+    <h2>Create User</h2>
+    <input type="text" id="create-name" placeholder="Name (optional)" />
+    <input type="text" id="create-password" placeholder="Password" />
+    <select id="create-role">
+      <option value="student">Student</option>
+      <option value="teacher">Teacher</option>
+    </select>
+    <button onclick="createUser()">Create</button>
+    <p class="message" id="create-message"></p>
+  </div>
+
+  <ul id="user-list"></ul>
+
+  <script>
+    const BASE = '';
+
+    function toggleForm() {
+      const form = document.getElementById('create-form');
+      form.style.display = form.style.display === 'block' ? 'none' : 'block';
+    }
+
+    async function createUser() {
+      const name = document.getElementById('create-name').value.trim();
+      const password = document.getElementById('create-password').value.trim();
+      const role = document.getElementById('create-role').value;
+      const msg = document.getElementById('create-message');
+
+      if (!password) { msg.textContent = 'Password is required.'; return; }
+
+      const res = await fetch(`${BASE}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name || undefined, password, role }),
+      });
+
+      if (res.ok) {
+        msg.textContent = 'User created!';
+        document.getElementById('create-name').value = '';
+        document.getElementById('create-password').value = '';
+        document.getElementById('create-role').value = 'student';
+        loadUsers();
+      } else {
+        const err = await res.json();
+        msg.textContent = err.error || 'Something went wrong.';
+      }
+    }
+
+    async function loadUsers() {
+      const res = await fetch(`${BASE}/users`);
+      const data = await res.json();
+      const list = document.getElementById('user-list');
+      list.innerHTML = Array.isArray(data) && data.length
+        ? data.map(u => `
+            <li>
+              <span>${u.name || '(no name)'} — ${u.role}</span>
+              <button class="delete" onclick="deleteUser(${u.id})">Delete</button>
+            </li>
+          `).join('')
+        : '<li>No users found.</li>';
+    }
+
+    async function deleteUser(id) {
+      const res = await fetch(`${BASE}/users/${id}`, { method: 'DELETE' });
+      if (res.ok) loadUsers();
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

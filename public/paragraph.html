@@ -6,15 +6,100 @@
   <title>Paragraph</title>
   <style>
     * { box-sizing: border-box; }
+    a { font-size: 20px; }
     body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; line-height: 1.7; }
     a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; }
     a.back:hover { text-decoration: underline; }
     .content { font-size: 1.05em; color: #333; }
+    nav { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #eee; }
+    nav button { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 1em; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+    nav button.active { color: #000; border-bottom-color: #000; font-weight: bold; }
+    section { display: none; }
+    section.active { display: block; }
+    .word-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .word-btn { padding: 6px 12px; font-size: 1em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+    .word-btn:hover { background: #f0f0f0; }
+    .word-btn.bracketed { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
+    .word-token-btn { width: 60px; height: 28px; padding: 0; font-size: 0.95em; border: none; border-bottom: 2px solid #333; border-radius: 0; background: #f0f0f0; cursor: pointer; display: inline-block; vertical-align: middle; margin: 2px 2px; }
+    .word-token-text { display: inline; margin: 0 2px; }
+
+    /* Modal overlay */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+
+    /* Flip card */
+    .flip-card { width: 260px; height: 160px; cursor: pointer; position: relative; }
+    .flip-card-front, .flip-card-back { position: absolute; inset: 0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; transition: opacity 0.2s; }
+    .flip-card-front { background: #f5f5f5; border: 1px solid #ddd; opacity: 1; }
+    .flip-card-back { background: #e8f0fe; border: 1px solid #1a73e8; opacity: 0; pointer-events: none; }
+    .flip-card.flipped .flip-card-front { opacity: 0; pointer-events: none; }
+    .flip-card.flipped .flip-card-back { opacity: 1; pointer-events: auto; }
+    .flip-card-front p { font-size: 0.9em; color: #888; margin: 0 0 8px; }
+    .flip-card-front .hint-label { font-size: 1.1em; color: #333; font-style: italic; }
+    .flip-card-back .answer { font-size: 1.4em; font-weight: bold; color: #1a73e8; }
+    .close-btn { margin-top: 24px; padding: 8px 24px; font-size: 1em; cursor: pointer; }
+    .pos-btn { padding: 4px 10px; font-size: 0.85em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+    .pos-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+    .sense-btn { width: 28px; height: 28px; font-size: 0.85em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+    .sense-btn:hover { background: #f0f0f0; }
   </style>
 </head>
 <body>
   <a class="back" id="back-link" href="#">← Back</a>
-  <p class="content" id="content">Loading...</p>
+
+  <div id="teacher-tabs" style="display:none">
+    <nav>
+      <button class="active" onclick="showTab('text-mode', this)">Text</button>
+      <button onclick="showTab('button-mode', this)">Buttons</button>
+    </nav>
+
+    <section id="text-mode" class="active">
+      <p class="content" id="content-text"></p>
+      <textarea id="edit-input" rows="5" style="display:none;width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:1em;"></textarea>
+      <div style="margin-top:8px;">
+        <button id="edit-btn" onclick="startEdit()" style="padding:8px 18px;font-size:1em;">Edit</button>
+        <button id="save-btn" onclick="saveEdit()" style="display:none;padding:8px 18px;font-size:1em;">Save</button>
+        <button id="cancel-btn" onclick="cancelEdit()" style="display:none;padding:8px 18px;font-size:1em;">Cancel</button>
+      </div>
+      <p id="edit-message" style="font-size:0.9em;margin-top:8px;"></p>
+    </section>
+
+    <section id="button-mode">
+      <div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:0.9em;color:#555;">Part of speech:</span>
+        <button class="pos-btn active" onclick="selectPos('', this)">Any</button>
+        <button class="pos-btn" onclick="selectPos('noun', this)">Noun</button>
+        <button class="pos-btn" onclick="selectPos('verb', this)">Verb</button>
+        <button class="pos-btn" onclick="selectPos('adjective', this)">Adjective</button>
+        <button class="pos-btn" onclick="selectPos('adverb', this)">Adverb</button>
+      </div>
+      <div class="word-grid" id="word-grid"></div>
+      <div id="definition-panel" style="display:none;margin-top:16px;padding:12px;background:#f9f9f9;border:1px solid #ddd;border-radius:6px;font-size:0.95em;">
+        <strong id="def-word"></strong> <em id="def-pos" style="color:#888;font-size:0.9em;"></em>
+        <ul id="def-list" style="margin:6px 0 0;padding-left:0;list-style:none;color:#333;"></ul>
+      </div>
+    </section>
+  </div>
+
+  <div id="student-view" style="display:none">
+    <div id="content-student" style="font-size:1.05em;color:#333;line-height:2;"></div>
+  </div>
+
+  <!-- Flip card modal -->
+  <div class="modal-overlay" id="modal">
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <div class="flip-card" id="flip-card" onclick="flipCard()">
+        <div class="flip-card-inner" id="flip-card-inner">
+          <div class="flip-card-front">
+            <p id="card-hint" style="font-size:1.1em;color:#222;text-align:center;margin:0;"></p>
+          </div>
+          <div class="flip-card-back">
+            <span class="answer" id="card-answer"></span>
+          </div>
+        </div>
+      </div>
+      <button class="close-btn" onclick="closeModal()">Close</button>
+    </div>
+  </div>
 
   <script>
     const BASE = '';
@@ -25,10 +110,183 @@
 
     document.getElementById('back-link').href = `/chapter.html?id=${chapterId}&role=${role}`;
 
+    function showTab(id, btn) {
+      document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    function flipCard() {
+      document.getElementById('flip-card').classList.toggle('flipped');
+    }
+
+    function openModal(word, hint) {
+      document.getElementById('card-answer').textContent = word;
+      document.getElementById('card-hint').textContent = hint || 'Tap to reveal';
+      document.getElementById('flip-card').classList.remove('flipped');
+      const modal = document.getElementById('modal');
+      modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+    }
+
+    function tokenize(text) {
+      return text.match(/\[[^\]]*\][.,!?;:]*|\S+/g) || [];
+    }
+
+    function parseToken(token) {
+      const bracketMatch = token.match(/^\[([^\]]+)\]([.,!?;:]*)$/);
+      if (bracketMatch) {
+        const inner = bracketMatch[1], punct = bracketMatch[2];
+        const starIdx = inner.indexOf('*');
+        if (starIdx !== -1) {
+          return { word: inner.slice(0, starIdx), definition: inner.slice(starIdx + 1), punct, bracketed: true };
+        }
+        const wm = inner.match(/^(.+?)([.,!?;:]*)$/);
+        return { word: wm ? wm[1] : inner, definition: '', punct: (wm ? wm[2] : '') + punct, bracketed: true };
+      }
+      const wm = token.match(/^(.+?)([.,!?;:]*)$/);
+      if (wm) return { word: wm[1], definition: '', punct: wm[2], bracketed: false };
+      return { word: token, definition: '', punct: '', bracketed: false };
+    }
+
+    function renderStudentContent(text) {
+      const container = document.getElementById('content-student');
+      container.innerHTML = tokenize(text).map(token => {
+        const { word, definition, punct, bracketed } = parseToken(token);
+        if (bracketed) {
+          const safe = word.replace(/"/g, '&quot;');
+          const safeHint = definition.replace(/"/g, '&quot;');
+          return `<button class="word-token-btn" data-word="${safe}" data-hint="${safeHint}" onclick="openModal(this.dataset.word, this.dataset.hint)"></button>${punct ? `<span class="word-token-text">${punct}</span>` : ''}`;
+        }
+        return `<span class="word-token-text">${word}${punct}</span>`;
+      }).join(' ');
+    }
+
+    function renderWords(text) {
+      const grid = document.getElementById('word-grid');
+      grid.innerHTML = tokenize(text).map((token, i) => {
+        const { word, punct, bracketed } = parseToken(token);
+        return `<button class="word-btn ${bracketed ? 'bracketed' : ''}" onclick="toggleBracket(${i})">${word}</button>${punct ? `<span style="margin-right:2px">${punct}</span>` : ''}`;
+      }).join('');
+    }
+
+    async function toggleBracket(index) {
+      currentWordIndex = index;
+      const tokens = tokenize(currentContent);
+      const token = tokens[index];
+      const { word, punct, bracketed } = parseToken(token);
+      tokens[index] = bracketed ? `${word}${punct}` : `[${word}]${punct}`;
+      currentContent = tokens.join(' ');
+      document.getElementById('content-text').textContent = currentContent;
+      document.getElementById('edit-input').value = currentContent;
+      renderWords(currentContent);
+
+      const panel = document.getElementById('definition-panel');
+      document.getElementById('def-word').textContent = word;
+      document.getElementById('def-pos').textContent = '';
+      document.getElementById('def-list').innerHTML = '<li>Loading…</li>';
+      panel.style.display = 'block';
+
+      const res = await fetch(`${BASE}/definitions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word, partOfSpeech: selectedPos || undefined }),
+      });
+      const data = await res.json();
+      const defList = document.getElementById('def-list');
+      if (res.ok) {
+        currentDefinitions = data.definitions;
+        document.getElementById('def-pos').textContent = data.partOfSpeech ? `(${data.partOfSpeech})` : '';
+        defList.innerHTML = data.definitions.length
+          ? data.definitions.map((d, i) => `<li style="margin-bottom:6px"><button class="sense-btn" onclick="selectSense(${i})">${i + 1}</button> ${d}</li>`).join('')
+          : '<li>No definitions available.</li>';
+      } else {
+        document.getElementById('def-pos').textContent = '';
+        defList.innerHTML = `<li>${data.error || 'No definition found.'}</li>`;
+      }
+    }
+
+    let currentContent = '';
+    let selectedPos = '';
+    let currentWordIndex = -1;
+    let currentDefinitions = [];
+
+    function selectSense(senseIndex) {
+      if (currentWordIndex < 0) return;
+      const tokens = tokenize(currentContent);
+      const { word, punct } = parseToken(tokens[currentWordIndex]);
+      const definition = currentDefinitions[senseIndex] ?? '';
+      tokens[currentWordIndex] = `[${word}*${definition}]${punct}`;
+      currentContent = tokens.join(' ');
+      document.getElementById('content-text').textContent = currentContent;
+      document.getElementById('edit-input').value = currentContent;
+      renderWords(currentContent);
+    }
+
+    function selectPos(pos, btn) {
+      selectedPos = pos;
+      document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function startEdit() {
+      document.getElementById('content-text').style.display = 'none';
+      document.getElementById('edit-input').style.display = 'block';
+      document.getElementById('edit-input').value = currentContent;
+      document.getElementById('edit-btn').style.display = 'none';
+      document.getElementById('save-btn').style.display = 'inline';
+      document.getElementById('cancel-btn').style.display = 'inline';
+    }
+
+    function cancelEdit() {
+      document.getElementById('content-text').style.display = 'block';
+      document.getElementById('edit-input').style.display = 'none';
+      document.getElementById('edit-btn').style.display = 'inline';
+      document.getElementById('save-btn').style.display = 'none';
+      document.getElementById('cancel-btn').style.display = 'none';
+      document.getElementById('edit-message').textContent = '';
+    }
+
+    async function saveEdit() {
+      const content = document.getElementById('edit-input').value.trim();
+      const msg = document.getElementById('edit-message');
+      if (!content) { msg.textContent = 'Content cannot be empty.'; return; }
+
+      const res = await fetch(`${BASE}/paragraphs/${paragraphId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+
+      if (res.ok) {
+        currentContent = content;
+        document.getElementById('content-text').textContent = content;
+        renderWords(content);
+        cancelEdit();
+        msg.textContent = 'Saved!';
+      } else {
+        const err = await res.json();
+        msg.textContent = err.error || 'Something went wrong.';
+      }
+    }
+
     async function loadParagraph() {
       const res = await fetch(`${BASE}/paragraphs/${paragraphId}`);
       const paragraph = await res.json();
-      document.getElementById('content').textContent = paragraph.content;
+
+      if (role === 'teacher') {
+        currentContent = paragraph.content;
+        document.getElementById('teacher-tabs').style.display = 'block';
+        document.getElementById('content-text').textContent = paragraph.content;
+        renderWords(paragraph.content);
+      } else {
+        document.getElementById('student-view').style.display = 'block';
+        renderStudentContent(paragraph.content);
+      }
     }
 
     loadParagraph();
