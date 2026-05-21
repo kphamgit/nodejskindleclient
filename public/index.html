@@ -15,8 +15,6 @@
 </head>
 <body>
   <h1>Kindle</h1>
-  <p id="users-link" style="display:none"><a href="/users.html">View all users</a></p>
-
   <div id="logout-bar" style="display:none; margin-bottom:16px;">
     <span id="welcome-msg"></span>
     <a href="/dashboard.html" style="margin-left:16px;">Dashboard</a>
@@ -46,10 +44,7 @@
         document.getElementById('main-content').style.display = 'none';
         document.getElementById('logout-bar').style.display = 'block';
         document.getElementById('welcome-msg').textContent =
-          `Welcome, ${payload.name} (${payload.role})`;
-        if (payload.role === 'teacher') {
-          document.getElementById('users-link').style.display = 'block';
-        }
+          `Welcome, ${payload.name}`;
       }
     }
 
