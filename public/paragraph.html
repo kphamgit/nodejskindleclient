@@ -1,31 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Title</title>
-    
-    <!-- External CSS Style Sheet -->
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paragraph</title>
+  <style>
+    * { box-sizing: border-box; }
+    a { font-size: 20px; }
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; line-height: 1.7; }
+    a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; }
+    a.back:hover { text-decoration: underline; }
+    .content { font-size: 1.05em; color: #333; }
+  </style>
 </head>
 <body>
+  <a class="back" id="back-link" href="#">← Back</a>
+  <p class="content" id="content-text"></p>
 
-    <header>
-        <nav>
-            <!-- Navigation links go here -->
-        </nav>
-    </header>
+  <script>
+    const BASE = '';
+    const params = new URLSearchParams(window.location.search);
+    const paragraphId = Number(params.get('id'));
+    const role = params.get('role');
+    const chapterId = params.get('chapterId');
 
-    <main>
-        <h1>Hello, World!</h1>
-        <p>Your main content starts here.</p>
-    </main>
+    document.getElementById('back-link').href = `/chapter.html?id=${chapterId}&role=${role}`;
 
-    <footer>
-        <p>&copy; 2026 Your Name or Company</p>
-    </footer>
+    async function loadParagraph() {
+      const res = await fetch(`${BASE}/paragraphs/${paragraphId}`);
+      const paragraph = await res.json();
+      document.getElementById('content-text').textContent = paragraph.content;
+    }
 
-    <!-- External JavaScript File -->
-    <script src="script.js"></script>
+    loadParagraph();
+  </script>
 </body>
 </html>
