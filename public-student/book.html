@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book</title>
+  <style>
+    * { box-sizing: border-box; }
+    a { font-size: 20px; }
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; }
+    a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; }
+    a.back:hover { text-decoration: underline; }
+    input { display: block; width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 8px 16px; cursor: pointer; margin-right: 8px; }
+    p.message { font-size: 0.9em; margin-top: 8px; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 10px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .edit-input { display: none; flex: 1; margin-right: 8px; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/student/dashboard.html">← Back</a>
+  <h1 id="book-title">Loading...</h1>
+
+  <div id="teacher-create" style="display:none">
+    <h2>Add Chapter</h2>
+    <input type="text" id="chapter-title" placeholder="Chapter title" />
+    <button onclick="createChapter()">Add</button>
+    <p class="message" id="create-message"></p>
+  </div>
+
+  <h2>Chapters</h2>
+  <ul id="chapter-list"></ul>
+
+  <script>
+    const BASE = '';
+    const params = new URLSearchParams(window.location.search);
+    const bookId = Number(params.get('id'));
+    const role = params.get('role');
+
+    if (role === 'teacher') {
+      document.getElementById('teacher-create').style.display = 'block';
+    }
+
+    async function loadBook() {
+      const res = await fetch(`${BASE}/books/${bookId}`);
+      const book = await res.json();
+      document.getElementById('book-title').textContent = book.title;
+      renderChapters(book.chapters);
+    }
+
+    function renderChapters(chapters) {
+      const list = document.getElementById('chapter-list');
+      if (!chapters.length) { list.innerHTML = '<li>No chapters yet.</li>'; return; }
+
+      list.innerHTML = chapters.map(c => `
+        <li id="chapter-${c.id}">
+          <a href="/student/chapter.html?id=${c.id}&role=${role}" class="chapter-label">${c.title}</a>
+          ${role === 'teacher' ? `
+            <input class="edit-input" id="edit-${c.id}" value="${c.title}" />
+            <div>
+              <button onclick="startEdit(${c.id})">Edit</button>
+              <button onclick="saveEdit(${c.id})" style="display:none" id="save-${c.id}">Save</button>
+              <button onclick="deleteChapter(${c.id})">Delete</button>
+            </div>
+          ` : ''}
+        </li>
+      `).join('');
+    }
+
+    function startEdit(id) {
+      document.querySelector(`#chapter-${id} .chapter-label`).style.display = 'none';
+      document.getElementById(`edit-${id}`).style.display = 'inline-block';
+      document.getElementById(`save-${id}`).style.display = 'inline';
+    }
+
+    async function saveEdit(id) {
+      const title = document.getElementById(`edit-${id}`).value.trim();
+      const res = await fetch(`${BASE}/chapters/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      if (res.ok) loadBook();
+    }
+
+    async function createChapter() {
+      const title = document.getElementById('chapter-title').value.trim();
+      const msg = document.getElementById('create-message');
+      if (!title) { msg.textContent = 'Title is required.'; return; }
+
+      const res = await fetch(`${BASE}/chapters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, bookId }),
+      });
+
+      if (res.ok) {
+        msg.textContent = 'Chapter added!';
+        document.getElementById('chapter-title').value = '';
+        loadBook();
+      } else {
+        const err = await res.json();
+        msg.textContent = err.error || 'Something went wrong.';
+      }
+    }
+
+    async function deleteChapter(id) {
+      const res = await fetch(`${BASE}/chapters/${id}`, { method: 'DELETE' });
+      if (res.ok) loadBook();
+    }
+
+    loadBook();
+  </script>
+</body>
+</html>

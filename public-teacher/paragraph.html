@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paragraph</title>
+  <style>
+    * { box-sizing: border-box; }
+    a { font-size: 20px; }
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; line-height: 1.7; }
+    a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; }
+    a.back:hover { text-decoration: underline; }
+    .content { font-size: 1.05em; color: #333; }
+    nav { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #eee; }
+    nav button { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 1em; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+    nav button.active { color: #000; border-bottom-color: #000; font-weight: bold; }
+    section { display: none; }
+    section.active { display: block; }
+    .word-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .word-btn { padding: 6px 12px; font-size: 1em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+    .word-btn:hover { background: #f0f0f0; }
+    .word-btn.bracketed { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
+    .pos-btn { padding: 4px 10px; font-size: 0.85em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+    .pos-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+    .sense-btn { width: 28px; height: 28px; font-size: 0.85em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+    .sense-btn:hover { background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <a class="back" id="back-link" href="#">← Back</a>
+
+  <nav>
+    <button class="active" onclick="showTab('text-mode', this)">Text</button>
+    <button onclick="showTab('button-mode', this)">Buttons</button>
+  </nav>
+
+  <section id="text-mode" class="active">
+    <p class="content" id="content-text"></p>
+    <textarea id="edit-input" rows="5" style="display:none;width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:1em;"></textarea>
+    <div style="margin-top:8px;">
+      <button id="edit-btn" onclick="startEdit()" style="padding:8px 18px;font-size:1em;">Edit</button>
+      <button id="save-btn" onclick="saveEdit()" style="display:none;padding:8px 18px;font-size:1em;">Save</button>
+      <button id="cancel-btn" onclick="cancelEdit()" style="display:none;padding:8px 18px;font-size:1em;">Cancel</button>
+    </div>
+    <p id="edit-message" style="font-size:0.9em;margin-top:8px;"></p>
+  </section>
+
+  <section id="button-mode">
+    <div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:0.9em;color:#555;">Part of speech:</span>
+      <button class="pos-btn active" onclick="selectPos('', this)">Any</button>
+      <button class="pos-btn" onclick="selectPos('noun', this)">Noun</button>
+      <button class="pos-btn" onclick="selectPos('verb', this)">Verb</button>
+      <button class="pos-btn" onclick="selectPos('adjective', this)">Adjective</button>
+      <button class="pos-btn" onclick="selectPos('adverb', this)">Adverb</button>
+    </div>
+    <div class="word-grid" id="word-grid"></div>
+    <div id="definition-panel" style="display:none;margin-top:16px;padding:12px;background:#f9f9f9;border:1px solid #ddd;border-radius:6px;font-size:0.95em;">
+      <strong id="def-word"></strong> <em id="def-pos" style="color:#888;font-size:0.9em;"></em>
+      <ul id="def-list" style="margin:6px 0 0;padding-left:0;list-style:none;color:#333;"></ul>
+    </div>
+  </section>
+
+  <script>
+    const BASE = '';
+    const params = new URLSearchParams(window.location.search);
+    const paragraphId = Number(params.get('id'));
+    const chapterId = params.get('chapterId');
+    const role = params.get('role');
+
+    document.getElementById('back-link').href = `/teacher/chapter.html?id=${chapterId}&role=${role}`;
+
+    function showTab(id, btn) {
+      document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn.classList.add('active');
+    }
+
+    function tokenize(text) {
+      return text.match(/\[[^\]]*\][.,!?;:]*|\S+/g) || [];
+    }
+
+    function parseToken(token) {
+      const bracketMatch = token.match(/^\[([^\]]+)\]([.,!?;:]*)$/);
+      if (bracketMatch) {
+        const inner = bracketMatch[1], punct = bracketMatch[2];
+        const starIdx = inner.indexOf('*');
+        if (starIdx !== -1) {
+          return { word: inner.slice(0, starIdx), definition: inner.slice(starIdx + 1), punct, bracketed: true };
+        }
+        const wm = inner.match(/^(.+?)([.,!?;:]*)$/);
+        return { word: wm ? wm[1] : inner, definition: '', punct: (wm ? wm[2] : '') + punct, bracketed: true };
+      }
+      const wm = token.match(/^(.+?)([.,!?;:]*)$/);
+      if (wm) return { word: wm[1], definition: '', punct: wm[2], bracketed: false };
+      return { word: token, definition: '', punct: '', bracketed: false };
+    }
+
+    function renderWords(text) {
+      const grid = document.getElementById('word-grid');
+      grid.innerHTML = tokenize(text).map((token, i) => {
+        const { word, punct, bracketed } = parseToken(token);
+        return `<button class="word-btn ${bracketed ? 'bracketed' : ''}" onclick="toggleBracket(${i})">${word}</button>${punct ? `<span style="margin-right:2px">${punct}</span>` : ''}`;
+      }).join('');
+    }
+
+    async function toggleBracket(index) {
+      currentWordIndex = index;
+      const tokens = tokenize(currentContent);
+      const token = tokens[index];
+      const { word, punct, bracketed } = parseToken(token);
+      tokens[index] = bracketed ? `${word}${punct}` : `[${word}]${punct}`;
+      currentContent = tokens.join(' ');
+      document.getElementById('content-text').textContent = currentContent;
+      document.getElementById('edit-input').value = currentContent;
+      renderWords(currentContent);
+
+      document.getElementById('def-word').textContent = word;
+      document.getElementById('def-pos').textContent = '';
+      document.getElementById('def-list').innerHTML = '<li>Loading…</li>';
+      document.getElementById('definition-panel').style.display = 'block';
+
+      const res = await fetch(`${BASE}/definitions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word, partOfSpeech: selectedPos || undefined }),
+      });
+      const data = await res.json();
+      const defList = document.getElementById('def-list');
+      if (res.ok) {
+        currentDefinitions = data.definitions;
+        document.getElementById('def-pos').textContent = data.partOfSpeech ? `(${data.partOfSpeech})` : '';
+        defList.innerHTML = data.definitions.length
+          ? data.definitions.map((d, i) => `<li style="margin-bottom:6px"><button class="sense-btn" onclick="selectSense(${i})">${i + 1}</button> ${d}</li>`).join('')
+          : '<li>No definitions available.</li>';
+      } else {
+        document.getElementById('def-pos').textContent = '';
+        defList.innerHTML = `<li>${data.error || 'No definition found.'}</li>`;
+      }
+    }
+
+    let currentContent = '';
+    let selectedPos = '';
+    let currentWordIndex = -1;
+    let currentDefinitions = [];
+
+    function selectSense(senseIndex) {
+      if (currentWordIndex < 0) return;
+      const tokens = tokenize(currentContent);
+      const { word, punct } = parseToken(tokens[currentWordIndex]);
+      const definition = currentDefinitions[senseIndex] ?? '';
+      tokens[currentWordIndex] = `[${word}*${definition}]${punct}`;
+      currentContent = tokens.join(' ');
+      document.getElementById('content-text').textContent = currentContent;
+      document.getElementById('edit-input').value = currentContent;
+      renderWords(currentContent);
+    }
+
+    function selectPos(pos, btn) {
+      selectedPos = pos;
+      document.querySelectorAll('.pos-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    function startEdit() {
+      document.getElementById('content-text').style.display = 'none';
+      document.getElementById('edit-input').style.display = 'block';
+      document.getElementById('edit-input').value = currentContent;
+      document.getElementById('edit-btn').style.display = 'none';
+      document.getElementById('save-btn').style.display = 'inline';
+      document.getElementById('cancel-btn').style.display = 'inline';
+    }
+
+    function cancelEdit() {
+      document.getElementById('content-text').style.display = 'block';
+      document.getElementById('edit-input').style.display = 'none';
+      document.getElementById('edit-btn').style.display = 'inline';
+      document.getElementById('save-btn').style.display = 'none';
+      document.getElementById('cancel-btn').style.display = 'none';
+      document.getElementById('edit-message').textContent = '';
+    }
+
+    async function saveEdit() {
+      const content = document.getElementById('edit-input').value.trim();
+      const msg = document.getElementById('edit-message');
+      if (!content) { msg.textContent = 'Content cannot be empty.'; return; }
+
+      const res = await fetch(`${BASE}/paragraphs/${paragraphId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+
+      if (res.ok) {
+        currentContent = content;
+        document.getElementById('content-text').textContent = content;
+        renderWords(content);
+        cancelEdit();
+        msg.textContent = 'Saved!';
+      } else {
+        const err = await res.json();
+        msg.textContent = err.error || 'Something went wrong.';
+      }
+    }
+
+    async function loadParagraph() {
+      const res = await fetch(`${BASE}/paragraphs/${paragraphId}`);
+      const paragraph = await res.json();
+      currentContent = paragraph.content;
+      document.getElementById('content-text').textContent = paragraph.content;
+      renderWords(paragraph.content);
+    }
+
+    loadParagraph();
+  </script>
+</body>
+</html>

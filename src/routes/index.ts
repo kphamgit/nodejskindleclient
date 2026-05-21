@@ -27,7 +27,9 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET!,
       { expiresIn: '8h' }
     );
-    res.json({ token });
+    res.cookie('token', token, { httpOnly: true, sameSite: 'lax' });
+    const redirect = user.role === 'teacher' ? '/teacher/dashboard.html' : '/student/dashboard.html';
+    res.json({ token, redirect });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

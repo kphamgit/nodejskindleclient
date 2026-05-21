@@ -80,7 +80,7 @@
     const role = params.get('role');
     const chapterId = params.get('chapterId');
 
-    document.getElementById('back-link').href = `/chapter.html?id=${chapterId}&role=${role}`;
+    document.getElementById('back-link').href = `/student/chapter.html?id=${chapterId}&role=${role}`;
 
     function tokenize(text) {
       return text.match(/\[[^\]]*\][.,!?;:]*|\S+/g) || [];
