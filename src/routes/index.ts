@@ -63,7 +63,11 @@ router.post('/login-kindle', async (req, res) => {
       maxAge: 8 * 60 * 60 * 1000,
       path: '/',
     });
-    res.redirect('/student/dashboard.html');
+    // Use meta-refresh instead of HTTP redirect: old WebKit (Kindle) may re-POST on 302,
+    // which the static file middleware ignores, causing the redirect to fall through.
+    res.send(`<!DOCTYPE html><html><head>
+<meta http-equiv="refresh" content="0;url=/student/dashboard.html">
+</head><body><a href="/student/dashboard.html">Loading...</a></body></html>`);
   } catch (error) {
     res.redirect('/?error=server');
   }
