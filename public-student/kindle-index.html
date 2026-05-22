@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kindle Login</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; max-width: 400px; margin: 60px auto; padding: 0 24px; }
+    h1 { font-size: 1.6em; margin-bottom: 24px; }
+    input { display: block; width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; }
+    button { padding: 10px 24px; font-size: 1em; cursor: pointer; }
+    .error { color: #c00; font-size: 0.9em; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Kindle Login</h1>
+  <form method="POST" action="/login-kindle">
+    <input type="text" name="name" placeholder="Name" autocomplete="username" />
+    <input type="password" name="password" placeholder="Password" autocomplete="current-password" />
+    <button type="submit">Login</button>
+  </form>
+  <script>
+    // Show error from redirect query param if present
+    var m = window.location.search.match(/[?&]error=([^&]+)/);
+    if (m) {
+      var p = document.createElement('p');
+      p.className = 'error';
+      p.textContent = m[1] === 'invalid' ? 'Invalid name or password.'
+                    : m[1] === 'teacher' ? 'Teacher accounts must log in from a desktop browser.'
+                    : 'Login failed. Please try again.';
+      document.querySelector('form').appendChild(p);
+    }
+  </script>
+</body>
+</html>

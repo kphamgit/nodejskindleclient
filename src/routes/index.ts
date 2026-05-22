@@ -41,6 +41,34 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Kindle PaperWhite: form POST, server-side redirect, token in readable cookie
+router.post('/login-kindle', async (req, res) => {
+  const { name, password } = req.body;
+  if (!name || !password) return res.redirect('/?error=missing');
+  try {
+    const user = await prisma.user.findFirst({ where: { name } });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.redirect('/?error=invalid');
+    }
+    if (user.role === 'teacher') {
+      return res.redirect('/?error=teacher');
+    }
+    const token = jwt.sign(
+      { id: user.id, name: user.name, role: user.role },
+      process.env.JWT_SECRET!,
+      { expiresIn: '8h' }
+    );
+    res.cookie('token', token, {
+      httpOnly: false,
+      maxAge: 8 * 60 * 60 * 1000,
+      path: '/',
+    });
+    res.redirect('/student/dashboard.html');
+  } catch (error) {
+    res.redirect('/?error=server');
+  }
+});
+
 router.post('/definitions', async (req, res) => {
   const { word } = req.body;
   if (!word) return res.status(400).json({ error: 'Word is required.' });

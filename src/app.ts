@@ -11,14 +11,24 @@ prisma.$connect()
 
 const app = express();
 
+function isKindle(req: express.Request): boolean {
+  const ua = req.headers['user-agent'] || '';
+  return /kindle/i.test(ua);
+}
+
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 app.use('/student', express.static(path.join(process.cwd(), 'public-student')));
 app.use('/teacher', express.static(path.join(process.cwd(), 'public-teacher')));
 
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(process.cwd(), 'public-student', 'index.html'));
+app.get('/', (req, res) => {
+  if (isKindle(req)) {
+    res.sendFile(path.join(process.cwd(), 'public-student', 'kindle-index.html'));
+  } else {
+    res.sendFile(path.join(process.cwd(), 'public-student', 'index.html'));
+  }
 });
 
 app.use(routes);

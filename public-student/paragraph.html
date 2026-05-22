@@ -75,7 +75,14 @@
 
   <script>
     const BASE = '';
-    if (!sessionStorage.getItem('token')) { window.location.href = '/'; }
+
+    function getCookie(name) {
+      var m = document.cookie.split('; ').find(function(r) { return r.startsWith(name + '='); });
+      return m ? decodeURIComponent(m.split('=')[1]) : null;
+    }
+
+    const token = sessionStorage.getItem('token') || getCookie('token');
+    if (!token) { window.location.href = '/'; }
     const params = new URLSearchParams(window.location.search);
     const paragraphId = Number(params.get('id'));
     const role = params.get('role');
@@ -138,7 +145,7 @@
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ difficulty }),
       });
@@ -156,7 +163,7 @@
 
       fetch(`${BASE}/paragraphs/${paragraphId}/init-blanks`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` },
+        headers: { 'Authorization': `Bearer ${token}` },
       });
     }
 
