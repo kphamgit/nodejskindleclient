@@ -39,7 +39,9 @@
       <p class="modal-hint" id="modal-hint"></p>
       <p class="modal-word" id="modal-word"></p>
       <div id="modal-actions">
-        <button class="reveal-btn" onclick="revealWord()">Reveal</button>
+        <button id="next-letter-btn" onclick="nextLetter()">Next letter</button>
+        <button id="show-def-btn" onclick="showDefinition()">Show definition</button>
+        <button class="reveal-btn" id="reveal-btn" onclick="revealWord()">Reveal</button>
         <button onclick="closeModal()">Close</button>
       </div>
       <div class="rating" id="rating">
@@ -87,6 +89,8 @@
     }
 
     var currentWord = '';
+    var currentHint = '';
+    var currentLetterCount = 1;
 
     function tokenize(text) {
       return text.match(/\[[^\]]*\][.,!?;:]*|\S+/g) || [];
@@ -132,12 +136,32 @@
 
     function openModal(btn) {
       currentWord = btn.getAttribute('data-word');
-      document.getElementById('modal-hint').textContent = btn.getAttribute('data-hint') || 'What is this word?';
+      currentHint = btn.getAttribute('data-hint') || '';
+      currentLetterCount = 1;
+      document.getElementById('modal-hint').textContent = currentWord.charAt(0).toUpperCase() + '...';
       document.getElementById('modal-word').textContent = currentWord;
       document.getElementById('modal-word').style.display = 'none';
+      document.getElementById('next-letter-btn').style.display = currentWord.length > 1 ? 'inline-block' : 'none';
+      document.getElementById('show-def-btn').style.display = 'inline-block';
+      document.getElementById('reveal-btn').style.display = 'none';
       document.getElementById('modal-actions').style.display = 'block';
       document.getElementById('rating').style.display = 'none';
       document.getElementById('modal').style.display = 'block';
+    }
+
+    function nextLetter() {
+      currentLetterCount++;
+      document.getElementById('modal-hint').textContent = currentWord.slice(0, currentLetterCount) + '...';
+      if (currentLetterCount >= currentWord.length) {
+        document.getElementById('next-letter-btn').style.display = 'none';
+      }
+    }
+
+    function showDefinition() {
+      document.getElementById('modal-hint').textContent = currentHint || '(no definition)';
+      document.getElementById('next-letter-btn').style.display = 'none';
+      document.getElementById('show-def-btn').style.display = 'none';
+      document.getElementById('reveal-btn').style.display = 'inline-block';
     }
 
     function revealWord() {
