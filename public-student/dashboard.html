@@ -17,7 +17,9 @@
     button.submit { padding: 8px 16px; cursor: pointer; }
     p.message { font-size: 0.9em; margin-top: 8px; }
     ul { list-style: none; padding: 0; }
-    li { padding: 8px; border-bottom: 1px solid #eee; }
+    li { padding: 8px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 12px; }
+    .review-btn { padding: 4px 12px; font-size: 0.85em; cursor: pointer; border: 1px solid #1a73e8; border-radius: 4px; background: #fff; color: #1a73e8; }
+    .review-btn:hover { background: #e8f0fe; }
   </style>
 </head>
 <body>
@@ -90,13 +92,57 @@
       }
     }
 
+    function startReview(bookId) {
+      window.location.href = `/student/review.html?bookId=${bookId}`;
+    }
+
+    async function resetBlanks(bookId) {
+      await fetch(`${BASE}/review/reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookId }),
+      });
+      loadDueBlanks(bookId);
+    }
+
+    async function loadDueBlanks(bookId) {
+      const res = await fetch(`${BASE}/review?bookId=${bookId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const { paragraphs, nextDue } = await res.json();
+      const details = paragraphs.flatMap(p => p.dueWordDetails ?? p.dueWords.map(w => ({ word: w, nextReviewAt: null })));
+      const el = document.getElementById(`due-${bookId}`);
+      if (!details.length) {
+        el.textContent = nextDue
+          ? `No blanks due now. Next review: ${new Date(nextDue).toLocaleString()}.`
+          : 'No blanks due for review.';
+        return;
+      }
+      el.innerHTML = details.map(d => {
+        const time = d.nextReviewAt ? new Date(d.nextReviewAt).toLocaleString() : 'now';
+        return `<span style="margin-right:12px;"><b>${d.word}</b>: ${time}</span>`;
+      }).join('');
+    }
+
     async function loadBooks() {
       const res = await fetch(`${BASE}/books`);
       const data = await res.json();
       const list = document.getElementById('book-list');
-      list.innerHTML = data.length
-        ? data.map(b => `<li><a href="/student/book.html?id=${b.id}&role=${ROLE}">${b.title}</a></li>`).join('')
-        : '<li>No books found.</li>';
+      if (!data.length) { list.innerHTML = '<li>No books found.</li>'; return; }
+      list.innerHTML = data.map(b => `
+          <li style="flex-direction:column;align-items:flex-start;gap:6px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <a href="/student/book.html?id=${b.id}&role=${ROLE}">${b.title}</a>
+              <button class="review-btn" onclick="startReview(${b.id})">Review</button>
+              <button class="review-btn" style="color:#c00;border-color:#c00;" onclick="resetBlanks(${b.id})">Reset</button>
+            </div>
+            <div id="due-${b.id}" style="font-size:0.8em;color:#888;"></div>
+          </li>`).join('');
+      data.forEach(b => loadDueBlanks(b.id));
     }
 
     loadBooks();

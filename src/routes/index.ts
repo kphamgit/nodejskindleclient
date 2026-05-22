@@ -7,6 +7,7 @@ import bookRouter from './book';
 import chapterRouter from './chapter';
 import paragraphRouter from './paragraph';
 import sectionRouter from './section';
+import reviewRouter from './review';
 
 const router = Router();
 router.use('/users', userRouter);
@@ -14,6 +15,7 @@ router.use('/books', bookRouter);
 router.use('/chapters', chapterRouter);
 router.use('/paragraphs', paragraphRouter);
 router.use('/sections', sectionRouter);
+router.use('/review', reviewRouter);
 
 router.post('/login', async (req, res) => {
   const { name, password } = req.body;

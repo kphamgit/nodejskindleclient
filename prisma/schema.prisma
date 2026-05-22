@@ -28,6 +28,7 @@ model User {
   password  String
   role      String   @default("student")
   createdAt DateTime @default(now())
+  blanks    Blank[]
 }
 
 model Book {
@@ -57,4 +58,21 @@ model Paragraph {
   content   String  @db.Text
   sectionId Int
   section   Section @relation(fields: [sectionId], references: [id])
+  blanks    Blank[]
+}
+
+model Blank {
+  id           Int       @id @default(autoincrement())
+  word         String
+  difficulty   Int       @default(1)
+  easiness     Float     @default(2.5)
+  interval     Int       @default(0)
+  repetitions  Int       @default(0)
+  nextReviewAt DateTime?
+  paragraphId  Int
+  paragraph    Paragraph @relation(fields: [paragraphId], references: [id])
+  userId       Int
+  user         User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, paragraphId, word])
 }

@@ -114,10 +114,12 @@
       }).join(' ');
     }
 
+    let currentWord = '';
+
     function openModal(btn) {
-      const hint = btn.dataset.hint;
-      document.getElementById('modal-hint').textContent = hint || 'What is this word?';
-      document.getElementById('modal-word').textContent = btn.dataset.word;
+      currentWord = btn.dataset.word;
+      document.getElementById('modal-hint').textContent = btn.dataset.hint || 'What is this word?';
+      document.getElementById('modal-word').textContent = currentWord;
       document.getElementById('modal-word').style.display = 'none';
       document.getElementById('reveal-btn').style.display = 'inline-block';
       document.getElementById('rating-btns').style.display = 'none';
@@ -130,8 +132,16 @@
       document.getElementById('rating-btns').style.display = 'flex';
     }
 
-    function rateWord(rating) {
-      console.log('Rating:', rating);
+    async function rateWord(difficulty) {
+      await fetch(`${BASE}/paragraphs/${paragraphId}/blanks/${encodeURIComponent(currentWord)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ difficulty }),
+      });
+      closeModal();
     }
 
     function closeModal() {
@@ -141,11 +151,12 @@
     async function loadParagraph() {
       const res = await fetch(`${BASE}/paragraphs/${paragraphId}`);
       const paragraph = await res.json();
-      if (role === 'student') {
-        renderStudentContent(paragraph.content);
-      } else {
-        document.getElementById('content-student').textContent = paragraph.content;
-      }
+      renderStudentContent(paragraph.content);
+
+      fetch(`${BASE}/paragraphs/${paragraphId}/init-blanks`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` },
+      });
     }
 
     loadParagraph();

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Review</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; line-height: 1.7; }
+    a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; font-size: 20px; }
+    a.back:hover { text-decoration: underline; }
+    .progress { font-size: 0.9em; color: #888; margin-bottom: 24px; }
+    .paragraph-content { font-size: 1.2em; color: #000; line-height: 2; margin-bottom: 24px; }
+    .blank-btn {
+      display: inline-block; width: 60px; height: 22px;
+      background: #f0f0f0; border: none; border-bottom: 2px solid #333;
+      cursor: pointer; vertical-align: middle; margin: 0 2px;
+    }
+    .blank-btn.rated { border-bottom-color: #1a73e8; background: #e8f0fe; }
+    .blank-btn:hover { background: #e0e0e0; }
+    .next-btn { padding: 10px 32px; font-size: 1em; cursor: pointer; border-radius: 6px; border: none; background: #1a73e8; color: #fff; display: none; }
+    .next-btn:hover { background: #1558b0; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; }
+    .modal-box { background: #fff; border-radius: 12px; border: 2px solid #111; padding: 28px 32px; min-width: 240px; max-width: 360px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+    .modal-hint { font-size: 1.2em; color: #000; margin: 0 0 16px; }
+    .modal-word { font-size: 1.7em; font-weight: bold; color: #1a73e8; display: none; margin: 0 0 16px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: center; }
+    .modal-actions button { padding: 8px 20px; font-size: 1em; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; }
+    .reveal-btn { background: #1a73e8 !important; color: #fff !important; border-color: #1a73e8 !important; }
+    .rating { display: none; flex-direction: column; align-items: center; gap: 8px; margin-top: 12px; }
+    .rating p { margin: 0; font-size: 0.9em; color: #555; }
+    .rating-btns { display: flex; gap: 10px; }
+    .rating-btns button { width: 48px; height: 40px; font-size: 1em; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; }
+    .rating-btns button:hover { background: #f0f0f0; }
+
+    .done { display: none; text-align: center; margin-top: 60px; }
+    .done h2 { color: #333; }
+    .done p { color: #666; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/student/dashboard.html">← Dashboard</a>
+
+  <div id="review-view">
+    <p class="progress" id="progress"></p>
+    <div class="paragraph-content" id="paragraph-content"></div>
+    <button class="next-btn" id="next-btn" onclick="nextParagraph()">Next →</button>
+  </div>
+
+  <div class="done" id="done-view">
+    <h2>All done for today!</h2>
+    <p>No more blanks due for review.</p>
+    <a href="/student/dashboard.html">← Back to Dashboard</a>
+  </div>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal-box">
+      <p class="modal-hint" id="modal-hint"></p>
+      <p class="modal-word" id="modal-word"></p>
+      <div class="modal-actions">
+        <button class="reveal-btn" id="reveal-btn" onclick="revealWord()">Reveal</button>
+        <button onclick="closeModal()">Close</button>
+      </div>
+      <div class="rating" id="rating">
+        <p>How easy was it to recall?</p>
+        <div class="rating-btns">
+          <button onclick="rate(1)">1</button>
+          <button onclick="rate(2)">2</button>
+          <button onclick="rate(3)">3</button>
+          <button onclick="rate(4)">4</button>
+        </div>
+        <p style="font-size:0.8em;color:#aaa;">1 = easiest &nbsp;&nbsp; 4 = hardest</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE = '';
+    const params = new URLSearchParams(window.location.search);
+    const bookId = params.get('bookId');
+    const token = sessionStorage.getItem('token');
+
+    let queue = [];       // list of { paragraphId, content, dueWords }
+    let current = null;   // current paragraph entry
+    let ratedWords = new Set();
+    let currentWord = '';
+
+    function tokenize(text) {
+      return text.match(/\[[^\]]*\][.,!?;:]*|\S+/g) || [];
+    }
+
+    function parseToken(token) {
+      const m = token.match(/^\[([^\]]+)\]([.,!?;:]*)$/);
+      if (m) {
+        const starIdx = m[1].indexOf('*');
+        if (starIdx !== -1)
+          return { word: m[1].slice(0, starIdx), hint: m[1].slice(starIdx + 1), punct: m[2], bracketed: true };
+        return { word: m[1], hint: '', punct: m[2], bracketed: true };
+      }
+      const wm = token.match(/^(.+?)([.,!?;:]*)$/);
+      return wm ? { word: wm[1], hint: '', punct: wm[2], bracketed: false }
+                : { word: token, hint: '', punct: '', bracketed: false };
+    }
+
+    function renderParagraph(content, dueWords) {
+      const dueSet = new Set(dueWords);
+      return tokenize(content).map(token => {
+        const { word, hint, punct, bracketed } = parseToken(token);
+        if (bracketed && dueSet.has(word)) {
+          const safeWord = word.replace(/"/g, '&quot;');
+          const safeHint = hint.replace(/"/g, '&quot;');
+          const rated = ratedWords.has(word) ? 'rated' : '';
+          return `<button class="blank-btn ${rated}" data-word="${safeWord}" data-hint="${safeHint}" onclick="openModal(this)"></button>${punct ? `<span>${punct}</span>` : ''}`;
+        }
+        return `<span>${word}${punct}</span>`;
+      }).join(' ');
+    }
+
+    function showCurrent() {
+      ratedWords.clear();
+      document.getElementById('paragraph-content').innerHTML = renderParagraph(current.content, current.dueWords);
+      document.getElementById('progress').textContent = `Paragraph ${queue.length > 0 ? '— ' + queue.length + ' more after this' : '— last one'}`;
+      document.getElementById('next-btn').style.display = 'none';
+    }
+
+    function checkAllRated() {
+      if (ratedWords.size === current.dueWords.length) {
+        document.getElementById('next-btn').style.display = 'inline-block';
+      }
+    }
+
+    function nextParagraph() {
+      if (!queue.length) {
+        document.getElementById('review-view').style.display = 'none';
+        document.getElementById('done-view').style.display = 'block';
+        return;
+      }
+      current = queue.shift();
+      showCurrent();
+    }
+
+    function openModal(btn) {
+      currentWord = btn.dataset.word;
+      document.getElementById('modal-hint').textContent = btn.dataset.hint || 'What is this word?';
+      document.getElementById('modal-word').textContent = currentWord;
+      document.getElementById('modal-word').style.display = 'none';
+      document.getElementById('reveal-btn').style.display = 'inline-block';
+      document.getElementById('rating').style.display = 'none';
+      document.getElementById('modal').style.display = 'flex';
+    }
+
+    function revealWord() {
+      document.getElementById('modal-word').style.display = 'block';
+      document.getElementById('reveal-btn').style.display = 'none';
+      document.getElementById('rating').style.display = 'flex';
+    }
+
+    async function rate(difficulty) {
+      await fetch(`${BASE}/paragraphs/${current.paragraphId}/blanks/${encodeURIComponent(currentWord)}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ difficulty }),
+      });
+      ratedWords.add(currentWord);
+      // Mark the button as rated
+      document.querySelectorAll('.blank-btn').forEach(btn => {
+        if (btn.dataset.word === currentWord) btn.classList.add('rated');
+      });
+      closeModal();
+      checkAllRated();
+    }
+
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+    }
+
+    async function loadQueue() {
+      const res = await fetch(`${BASE}/review?bookId=${bookId}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      queue = data.paragraphs;
+      if (!queue.length) {
+        document.getElementById('review-view').style.display = 'none';
+        document.getElementById('done-view').style.display = 'block';
+        return;
+      }
+      current = queue.shift();
+      showCurrent();
+    }
+
+    loadQueue();
+  </script>
+</body>
+</html>
