@@ -29,7 +29,11 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET!,
       { expiresIn: '8h' }
     );
-    res.cookie('token', token, { httpOnly: true, sameSite: 'lax' });
+    res.cookie('token', token, {
+      httpOnly: true,
+      maxAge: 8 * 60 * 60 * 1000,
+      secure: process.env.NODE_ENV === 'production',
+    });
     const redirect = user.role === 'teacher' ? '/teacher/dashboard.html' : '/student/dashboard.html';
     res.json({ token, redirect });
   } catch (error) {

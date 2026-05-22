@@ -19,10 +19,6 @@ router.get('/', async (req, res) => {
   const bookId = req.query.bookId ? Number(req.query.bookId) : undefined;
 
   try {
-    const allBlanks = await prisma.blank.findMany({ where: { userId } });
-    console.log('[review] all blanks for user', userId, JSON.stringify(allBlanks.map(b => ({ id: b.id, word: b.word, nextReviewAt: b.nextReviewAt, paragraphId: b.paragraphId }))));
-    console.log('[review] now =', new Date(), 'bookId =', bookId);
-
     const blanks = await prisma.blank.findMany({
       where: {
         userId,
@@ -34,8 +30,6 @@ router.get('/', async (req, res) => {
       },
       include: { paragraph: true },
     });
-    console.log('[review] due blanks count:', blanks.length);
-
     // Group due blanks by paragraph
     const paragraphMap = new Map<number, { paragraphId: number; content: string; dueWords: string[] }>();
     for (const b of blanks) {
