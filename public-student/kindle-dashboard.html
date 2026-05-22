@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; }
+    h1 { font-size: 1.6em; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 10px 0; border-bottom: 1px solid #eee; }
+    .review-btn { padding: 6px 14px; font-size: 0.9em; cursor: pointer; border: 1px solid #1a73e8; border-radius: 4px; background: #fff; color: #1a73e8; margin-left: 12px; }
+    .review-btn:active { background: #e8f0fe; }
+    a.book-link { font-size: 1.1em; color: #000; }
+  </style>
+</head>
+<body>
+  <h1>Dashboard</h1>
+  <p id="welcome"></p>
+  <h2>Books</h2>
+  <ul id="book-list"><li>Loading...</li></ul>
+
+  <script>
+    function getCookie(name) {
+      var cookies = document.cookie.split('; ');
+      for (var i = 0; i < cookies.length; i++) {
+        if (cookies[i].indexOf(name + '=') === 0) {
+          return decodeURIComponent(cookies[i].substring(name.length + 1));
+        }
+      }
+      return null;
+    }
+
+    var token = getCookie('token');
+    if (!token) { window.location.href = '/'; }
+
+    function parseJWT(t) {
+      try { return JSON.parse(atob(t.split('.')[1])); }
+      catch (e) { return {}; }
+    }
+
+    var payload = parseJWT(token);
+    document.getElementById('welcome').textContent = 'Welcome, ' + (payload.name || 'Student');
+
+    function xhrGet(url, auth, callback) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      if (auth) { xhr.setRequestHeader('Authorization', 'Bearer ' + auth); }
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          try { callback(JSON.parse(xhr.responseText)); }
+          catch (e) { callback(null); }
+        }
+      };
+      xhr.send();
+    }
+
+    function startReview(bookId) {
+      window.location.href = '/student/kindle-review.html?bookId=' + bookId;
+    }
+
+    function loadBooks() {
+      xhrGet('/books', null, function (data) {
+        var list = document.getElementById('book-list');
+        if (!data || !data.length) {
+          list.innerHTML = '<li>No books found.</li>';
+          return;
+        }
+        var html = '';
+        for (var i = 0; i < data.length; i++) {
+          var b = data[i];
+          html += '<li>' +
+            '<span class="book-link">' + b.title + '</span>' +
+            ' <button class="review-btn" onclick="startReview(' + b.id + ')">Review</button>' +
+            '</li>';
+        }
+        list.innerHTML = html;
+      });
+    }
+
+    loadBooks();
+  </script>
+</body>
+</html>

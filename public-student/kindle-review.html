@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Review</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; line-height: 1.7; }
+    a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; font-size: 20px; }
+    .progress { font-size: 0.9em; color: #888; margin-bottom: 24px; }
+    .paragraph-content { font-size: 1.2em; color: #000; line-height: 2; margin-bottom: 24px; }
+    .blank-btn {
+      display: inline-block; width: 60px; height: 22px;
+      background: #f0f0f0; border: none; border-bottom: 2px solid #333;
+      cursor: pointer; vertical-align: middle; margin: 0 2px;
+    }
+    .blank-btn.rated { border-bottom-color: #1a73e8; background: #e8f0fe; }
+    .next-btn { padding: 10px 32px; font-size: 1em; cursor: pointer; border-radius: 6px; border: none; background: #1a73e8; color: #fff; display: none; }
+
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); }
+    .modal-box { background: #fff; border-radius: 12px; border: 2px solid #111; padding: 28px 24px; margin: 80px auto; max-width: 300px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+    .modal-hint { font-size: 1.2em; color: #000; margin: 0 0 16px; }
+    .modal-word { font-size: 1.7em; font-weight: bold; color: #1a73e8; display: none; margin: 0 0 16px; }
+    .modal-actions button { padding: 8px 20px; font-size: 1em; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; margin: 4px; }
+    .reveal-btn { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+    .rating { display: none; margin-top: 12px; }
+    .rating p { margin: 0 0 8px; font-size: 0.9em; color: #555; }
+    .rating button { width: 48px; height: 40px; font-size: 1em; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; margin: 2px; }
+
+    .done { display: none; text-align: center; margin-top: 60px; }
+    .done h2 { color: #333; }
+  </style>
+</head>
+<body>
+  <a class="back" href="/student/kindle-dashboard.html">← Dashboard</a>
+
+  <div id="review-view">
+    <p class="progress" id="progress"></p>
+    <div class="paragraph-content" id="paragraph-content"></div>
+    <button class="next-btn" id="next-btn" onclick="nextParagraph()">Next &rarr;</button>
+  </div>
+
+  <div class="done" id="done-view">
+    <h2>All done for today!</h2>
+    <p>No more blanks due for review.</p>
+    <a href="/student/kindle-dashboard.html">Back to Dashboard</a>
+  </div>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal-box">
+      <p class="modal-hint" id="modal-hint"></p>
+      <p class="modal-word" id="modal-word"></p>
+      <div id="modal-actions">
+        <button class="reveal-btn" onclick="revealWord()">Reveal</button>
+        <button onclick="closeModal()">Close</button>
+      </div>
+      <div class="rating" id="rating">
+        <p>How easy was it to recall?</p>
+        <div>
+          <button onclick="rate(1)">1</button>
+          <button onclick="rate(2)">2</button>
+          <button onclick="rate(3)">3</button>
+          <button onclick="rate(4)">4</button>
+        </div>
+        <p style="font-size:0.8em;color:#aaa;">1 = easiest &nbsp; 4 = hardest</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function getCookie(name) {
+      var cookies = document.cookie.split('; ');
+      for (var i = 0; i < cookies.length; i++) {
+        if (cookies[i].indexOf(name + '=') === 0) {
+          return decodeURIComponent(cookies[i].substring(name.length + 1));
+        }
+      }
+      return null;
+    }
+
+    var token = getCookie('token');
+    if (!token) { window.location.href = '/'; }
+
+    var bookId = null;
+    var parts = window.location.search.slice(1).split('&');
+    for (var pi = 0; pi < parts.length; pi++) {
+      var kv = parts[pi].split('=');
+      if (kv[0] === 'bookId') { bookId = kv[1]; }
+    }
+
+    var queue = [];
+    var current = null;
+    var ratedWords = {};
+    var currentWord = '';
+
+    function tokenize(text) {
+      return text.match(/\[[^\]]*\][.,!?;:]*|\S+/g) || [];
+    }
+
+    function parseWordToken(t) {
+      var m = t.match(/^\[([^\]]+)\]([.,!?;:]*)$/);
+      if (m) {
+        var starIdx = m[1].indexOf('*');
+        if (starIdx !== -1) {
+          return { word: m[1].slice(0, starIdx), hint: m[1].slice(starIdx + 1), punct: m[2], bracketed: true };
+        }
+        return { word: m[1], hint: '', punct: m[2], bracketed: true };
+      }
+      var wm = t.match(/^(.+?)([.,!?;:]*)$/);
+      return wm
+        ? { word: wm[1], hint: '', punct: wm[2], bracketed: false }
+        : { word: t, hint: '', punct: '', bracketed: false };
+    }
+
+    function escAttr(s) {
+      return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    }
+
+    function renderParagraph(content, dueWords) {
+      var dueSet = {};
+      for (var i = 0; i < dueWords.length; i++) { dueSet[dueWords[i]] = true; }
+      var tokens = tokenize(content);
+      var html = '';
+      for (var j = 0; j < tokens.length; j++) {
+        var p = parseWordToken(tokens[j]);
+        if (p.bracketed && dueSet[p.word]) {
+          var rated = ratedWords[p.word] ? ' rated' : '';
+          html += '<button class="blank-btn' + rated + '"' +
+                  ' data-word="' + escAttr(p.word) + '"' +
+                  ' data-hint="' + escAttr(p.hint) + '"' +
+                  ' onclick="openModal(this)"></button>';
+          if (p.punct) { html += '<span>' + p.punct + '</span>'; }
+        } else {
+          html += '<span>' + escAttr(p.word) + p.punct + '</span>';
+        }
+        html += ' ';
+      }
+      return html;
+    }
+
+    function showCurrent() {
+      ratedWords = {};
+      document.getElementById('paragraph-content').innerHTML = renderParagraph(current.content, current.dueWords);
+      var more = queue.length ? '— ' + queue.length + ' more after this' : '— last one';
+      document.getElementById('progress').textContent = 'Paragraph ' + more;
+      document.getElementById('next-btn').style.display = 'none';
+    }
+
+    function checkAllRated() {
+      for (var i = 0; i < current.dueWords.length; i++) {
+        if (!ratedWords[current.dueWords[i]]) { return; }
+      }
+      document.getElementById('next-btn').style.display = 'inline-block';
+    }
+
+    function nextParagraph() {
+      if (!queue.length) {
+        document.getElementById('review-view').style.display = 'none';
+        document.getElementById('done-view').style.display = 'block';
+        return;
+      }
+      current = queue.shift();
+      showCurrent();
+    }
+
+    function openModal(btn) {
+      currentWord = btn.getAttribute('data-word');
+      var hint = btn.getAttribute('data-hint') || 'What is this word?';
+      document.getElementById('modal-hint').textContent = hint;
+      document.getElementById('modal-word').textContent = currentWord;
+      document.getElementById('modal-word').style.display = 'none';
+      document.getElementById('modal-actions').style.display = 'block';
+      document.getElementById('rating').style.display = 'none';
+      document.getElementById('modal').style.display = 'block';
+    }
+
+    function revealWord() {
+      document.getElementById('modal-word').style.display = 'block';
+      document.getElementById('modal-actions').style.display = 'none';
+      document.getElementById('rating').style.display = 'block';
+    }
+
+    function rate(difficulty) {
+      var word = currentWord;
+      var xhr = new XMLHttpRequest();
+      xhr.open('PATCH', '/paragraphs/' + current.paragraphId + '/blanks/' + encodeURIComponent(word), true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          ratedWords[word] = true;
+          var btns = document.getElementsByClassName('blank-btn');
+          for (var i = 0; i < btns.length; i++) {
+            if (btns[i].getAttribute('data-word') === word) {
+              btns[i].className = 'blank-btn rated';
+            }
+          }
+          closeModal();
+          checkAllRated();
+        }
+      };
+      xhr.send(JSON.stringify({ difficulty: difficulty }));
+    }
+
+    function closeModal() {
+      document.getElementById('modal').style.display = 'none';
+    }
+
+    function loadQueue() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/review?bookId=' + bookId, true);
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+          var data;
+          try { data = JSON.parse(xhr.responseText); }
+          catch (e) { data = { paragraphs: [] }; }
+          queue = data.paragraphs || [];
+          if (!queue.length) {
+            document.getElementById('review-view').style.display = 'none';
+            document.getElementById('done-view').style.display = 'block';
+            return;
+          }
+          current = queue.shift();
+          showCurrent();
+        }
+      };
+      xhr.send();
+    }
+
+    loadQueue();
+  </script>
+</body>
+</html>
