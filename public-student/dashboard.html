@@ -53,6 +53,7 @@
     }
 
     const token = sessionStorage.getItem('token');
+    if (!token) { window.location.href = '/'; }
     const payload = parseToken(token) || {};
     const ROLE = payload.role || 'student';
 

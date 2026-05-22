@@ -75,6 +75,7 @@
 
   <script>
     const BASE = '';
+    if (!sessionStorage.getItem('token')) { window.location.href = '/'; }
     const params = new URLSearchParams(window.location.search);
     const paragraphId = Number(params.get('id'));
     const role = params.get('role');

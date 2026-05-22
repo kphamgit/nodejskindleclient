@@ -81,6 +81,7 @@
     const params = new URLSearchParams(window.location.search);
     const bookId = params.get('bookId');
     const token = sessionStorage.getItem('token');
+    if (!token) { window.location.href = '/'; }
 
     let queue = [];       // list of { paragraphId, content, dueWords }
     let current = null;   // current paragraph entry
