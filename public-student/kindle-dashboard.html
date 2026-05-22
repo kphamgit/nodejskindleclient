@@ -70,7 +70,7 @@
         for (var i = 0; i < data.length; i++) {
           var b = data[i];
           html += '<li>' +
-            '<span class="book-link">' + b.title + '</span>' +
+            '<a href="/student/kindle-book.html?id=' + b.id + '">' + b.title + '</a>' +
             ' <button class="review-btn" onclick="startReview(' + b.id + ')">Review</button>' +
             '</li>';
         }
