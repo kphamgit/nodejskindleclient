@@ -88,7 +88,7 @@
         for (var i = 0; i < section.paragraphs.length; i++) {
           var p = section.paragraphs[i];
           var preview = p.content.substring(0, 60) + (p.content.length > 60 ? '...' : '');
-          html += '<li><a href="/student/kindle-paragraph.html?id=' + p.id + '&chapterId=' + chapterId + '">' + preview + '</a></li>';
+          html += '<li><a href="/student/kindle-paragraph.html?id=' + p.id + '&chapterId=' + chapterId + '&bookId=' + bookId + '">' + preview + '</a></li>';
         }
         html += '</ul>';
         panel.innerHTML = html;
