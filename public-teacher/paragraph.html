@@ -10,7 +10,7 @@
     body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 16px; line-height: 1.7; }
     a.back { display: inline-block; margin-bottom: 24px; color: #555; text-decoration: none; }
     a.back:hover { text-decoration: underline; }
-    .content { font-size: 1.05em; color: #333; }
+    .content { font-size: 1.2em; color: #333; line-height: 2.8; }
     nav { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid #eee; }
     nav button { padding: 10px 20px; border: none; background: none; cursor: pointer; font-size: 1em; color: #666; border-bottom: 3px solid transparent; margin-bottom: -2px; }
     nav button.active { color: #000; border-bottom-color: #000; font-weight: bold; }
@@ -20,6 +20,9 @@
     .word-btn { padding: 6px 12px; font-size: 1em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
     .word-btn:hover { background: #f0f0f0; }
     .word-btn.bracketed { background: #e8f0fe; border-color: #1a73e8; color: #1a73e8; }
+    .word-btn.range-start { background: #fff3e0; border-color: #f57c00; color: #e65100; }
+    .multi-word-btn { padding: 6px 14px; font-size: 0.9em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
+    .multi-word-btn.active { background: #e65100; color: #fff; border-color: #e65100; }
     .pos-btn { padding: 4px 10px; font-size: 0.85em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
     .pos-btn.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
     .sense-btn { width: 28px; height: 28px; font-size: 0.85em; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; }
@@ -36,7 +39,7 @@
 
   <section id="text-mode" class="active">
     <p class="content" id="content-text"></p>
-    <textarea id="edit-input" rows="5" style="display:none;width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:1em;"></textarea>
+    <textarea id="edit-input" rows="5" style="display:none;width:100%;padding:8px;border:1px solid #ccc;border-radius:4px;font-size:1.2em;line-height:2.8;"></textarea>
     <div style="margin-top:8px;">
       <button id="edit-btn" onclick="startEdit()" style="padding:8px 18px;font-size:1em;">Edit</button>
       <button id="save-btn" onclick="saveEdit()" style="display:none;padding:8px 18px;font-size:1em;">Save</button>
@@ -53,6 +56,10 @@
       <button class="pos-btn" onclick="selectPos('verb', this)">Verb</button>
       <button class="pos-btn" onclick="selectPos('adjective', this)">Adjective</button>
       <button class="pos-btn" onclick="selectPos('adverb', this)">Adverb</button>
+    </div>
+    <div style="margin-bottom:8px;">
+      <button id="multi-word-btn" class="multi-word-btn" onclick="toggleMultiWordMode()">Multi-word</button>
+      <span id="range-hint" style="display:none;font-size:0.85em;color:#e65100;margin-left:8px;">Click the first word, then the last word of the expression</span>
     </div>
     <div class="word-grid" id="word-grid"></div>
     <div id="definition-panel" style="display:none;margin-top:16px;padding:12px;background:#f9f9f9;border:1px solid #ddd;border-radius:6px;font-size:0.95em;">
@@ -101,7 +108,7 @@
       const grid = document.getElementById('word-grid');
       grid.innerHTML = tokenize(text).map((token, i) => {
         const { word, punct, bracketed } = parseToken(token);
-        return `<button class="word-btn ${bracketed ? 'bracketed' : ''}" onclick="toggleBracket(${i})">${word}</button>${punct ? `<span style="margin-right:2px">${punct}</span>` : ''}`;
+        return `<button class="word-btn ${bracketed ? 'bracketed' : ''}" data-idx="${i}" onclick="handleWordClick(${i})">${word}</button>${punct ? `<span style="margin-right:2px">${punct}</span>` : ''}`;
       }).join('');
     }
 
@@ -144,6 +151,81 @@
     let selectedPos = '';
     let currentWordIndex = -1;
     let currentDefinitions = [];
+    let multiWordMode = false;
+    let rangeStart = -1;
+
+    function toggleMultiWordMode() {
+      multiWordMode = !multiWordMode;
+      rangeStart = -1;
+      document.querySelectorAll('.word-btn').forEach(b => b.classList.remove('range-start'));
+      document.getElementById('multi-word-btn').classList.toggle('active', multiWordMode);
+      document.getElementById('range-hint').style.display = multiWordMode ? 'inline' : 'none';
+    }
+
+    function handleWordClick(index) {
+      if (!multiWordMode) {
+        toggleBracket(index);
+        return;
+      }
+      if (rangeStart === -1) {
+        rangeStart = index;
+        const btn = document.querySelector(`.word-btn[data-idx="${index}"]`);
+        if (btn) btn.classList.add('range-start');
+      } else if (rangeStart === index) {
+        rangeStart = -1;
+        document.querySelectorAll('.word-btn').forEach(b => b.classList.remove('range-start'));
+        toggleMultiWordMode();
+        toggleBracket(index);
+      } else {
+        const start = Math.min(rangeStart, index);
+        const end = Math.max(rangeStart, index);
+        rangeStart = -1;
+        document.querySelectorAll('.word-btn').forEach(b => b.classList.remove('range-start'));
+        toggleMultiWordMode();
+        createRangeBlank(start, end);
+      }
+    }
+
+    async function createRangeBlank(start, end) {
+      const tokens = tokenize(currentContent);
+      const words = [];
+      let finalPunct = '';
+      for (let i = start; i <= end; i++) {
+        const { word, punct } = parseToken(tokens[i]);
+        words.push(word);
+        if (i === end) finalPunct = punct;
+      }
+      const combined = words.join(' ');
+      tokens.splice(start, end - start + 1, `[${combined}]${finalPunct}`);
+      currentContent = tokens.join(' ');
+      currentWordIndex = start;
+      document.getElementById('content-text').textContent = currentContent;
+      document.getElementById('edit-input').value = currentContent;
+      renderWords(currentContent);
+
+      document.getElementById('def-word').textContent = combined;
+      document.getElementById('def-pos').textContent = '';
+      document.getElementById('def-list').innerHTML = '<li>Loading…</li>';
+      document.getElementById('definition-panel').style.display = 'block';
+
+      const res = await fetch(`${BASE}/definitions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word: combined, partOfSpeech: selectedPos || undefined }),
+      });
+      const data = await res.json();
+      const defList = document.getElementById('def-list');
+      if (res.ok) {
+        currentDefinitions = data.definitions;
+        document.getElementById('def-pos').textContent = data.partOfSpeech ? `(${data.partOfSpeech})` : '';
+        defList.innerHTML = data.definitions.length
+          ? data.definitions.map((d, i) => `<li style="margin-bottom:6px"><button class="sense-btn" onclick="selectSense(${i})">${i + 1}</button> ${d}</li>`).join('')
+          : '<li>No definitions available.</li>';
+      } else {
+        document.getElementById('def-pos').textContent = '';
+        defList.innerHTML = `<li>${data.error || 'No definition found.'}</li>`;
+      }
+    }
 
     function selectSense(senseIndex) {
       if (currentWordIndex < 0) return;
