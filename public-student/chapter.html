@@ -26,6 +26,7 @@
     ul.paragraph-list li { padding: 6px 0; border-bottom: 1px solid #eee; }
     ul.paragraph-list li a { color: #1a73e8; text-decoration: none; }
     ul.paragraph-list li a:hover { text-decoration: underline; }
+    .blank-preview { display: inline-block; width: 60px; border-bottom: 2px solid currentColor; vertical-align: baseline; }
   </style>
 </head>
 <body>
@@ -104,6 +105,14 @@
       }
     }
 
+    function makePreview(content) {
+      const processed = content.replace(/\[[^\]]*\]/g, '\x00');
+      let preview = processed.substring(0, 60) + (processed.length > 60 ? '...' : '');
+      return preview.split('\x00').map((part, i, arr) =>
+        part + (i < arr.length - 1 ? '<span class="blank-preview"></span>' : '')
+      ).join('');
+    }
+
     async function loadParagraphs(sectionId) {
       const res = await fetch(`${BASE}/sections/${sectionId}`);
       const section = await res.json();
@@ -116,7 +125,7 @@
       }
 
       list.innerHTML = paragraphs.map(p =>
-        `<li><a href="/student/paragraph.html?id=${p.id}&role=${role}&chapterId=${chapterId}">${p.content.substring(0, 60)}${p.content.length > 60 ? '...' : ''}</a></li>`
+        `<li><a href="/student/paragraph.html?id=${p.id}&role=${role}&chapterId=${chapterId}">${makePreview(p.content)}</a></li>`
       ).join('');
     }
 

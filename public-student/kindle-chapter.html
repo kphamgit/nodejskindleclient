@@ -16,6 +16,7 @@
     .para-list ul { list-style: none; padding: 0; margin: 0; }
     .para-list li { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
     .para-list li a { color: #000; text-decoration: none; font-size: 1.4em; }
+    .blank-preview { display: inline-block; width: 60px; border-bottom: 2px solid currentColor; vertical-align: baseline; }
     .para-list li a:active { text-decoration: underline; }
   </style>
 </head>
@@ -77,6 +78,18 @@
       }
     }
 
+    function makePreview(content) {
+      var processed = content.replace(/\[[^\]]*\]/g, '\x00');
+      var preview = processed.substring(0, 60) + (processed.length > 60 ? '...' : '');
+      var parts = preview.split('\x00');
+      var html = '';
+      for (var i = 0; i < parts.length; i++) {
+        html += parts[i];
+        if (i < parts.length - 1) { html += '<span class="blank-preview"></span>'; }
+      }
+      return html;
+    }
+
     function loadParagraphs(sectionId, panel) {
       xhrGet('/sections/' + sectionId, function (section) {
         if (!section || !section.paragraphs || !section.paragraphs.length) {
@@ -87,7 +100,7 @@
         var html = '<ul>';
         for (var i = 0; i < section.paragraphs.length; i++) {
           var p = section.paragraphs[i];
-          var preview = p.content.substring(0, 60) + (p.content.length > 60 ? '...' : '');
+          var preview = makePreview(p.content);
           html += '<li><a href="/student/kindle-paragraph.html?id=' + p.id + '&chapterId=' + chapterId + '&bookId=' + bookId + '">' + preview + '</a></li>';
         }
         html += '</ul>';
