@@ -22,6 +22,7 @@
       text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.4);
     }
     .modal-hint { font-size: 1.2em; color: #000; margin: 0 0 16px; }
+    .modal-letters { font-size: 1.2em; color: #555; margin: 0 0 12px; }
     .modal-word { font-size: 1.7em; font-weight: bold; color: #1a73e8; display: none; margin: 0 0 16px; }
     #modal-actions button { padding: 10px 24px; font-size: 1.3em; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; margin: 4px; }
     #modal-actions #reveal-btn { background: #1a73e8; color: #fff; border-color: #1a73e8; }
@@ -37,10 +38,10 @@
   <div class="modal-overlay" id="modal">
     <div class="modal-box">
       <p class="modal-hint" id="modal-hint"></p>
+      <p class="modal-letters" id="modal-letters"></p>
       <p class="modal-word" id="modal-word"></p>
       <div id="modal-actions">
-        <button id="next-letter-btn" onclick="nextLetter()">Next letter</button>
-        <button id="show-def-btn" onclick="showDefinition()">Show definition</button>
+        <button id="letter-btn" onclick="showLetter()">First letter</button>
         <button class="reveal-btn" id="reveal-btn" onclick="revealWord()">Reveal</button>
         <button onclick="closeModal()">Close</button>
       </div>
@@ -137,35 +138,31 @@
     function openModal(btn) {
       currentWord = btn.getAttribute('data-word');
       currentHint = btn.getAttribute('data-hint') || '';
-      currentLetterCount = 1;
-      document.getElementById('modal-hint').textContent = currentWord.charAt(0).toUpperCase() + '...';
+      currentLetterCount = 0;
+      document.getElementById('modal-hint').textContent = currentHint || '(no definition)';
+      document.getElementById('modal-letters').textContent = '';
       document.getElementById('modal-word').textContent = currentWord;
       document.getElementById('modal-word').style.display = 'none';
-      document.getElementById('next-letter-btn').style.display = currentWord.length > 1 ? 'inline-block' : 'none';
-      document.getElementById('show-def-btn').style.display = 'inline-block';
-      document.getElementById('reveal-btn').style.display = 'none';
+      document.getElementById('letter-btn').textContent = 'First letter';
+      document.getElementById('letter-btn').style.display = 'inline-block';
+      document.getElementById('reveal-btn').style.display = 'inline-block';
       document.getElementById('modal-actions').style.display = 'block';
       document.getElementById('rating').style.display = 'none';
       document.getElementById('modal').style.display = 'block';
     }
 
-    function nextLetter() {
+    function showLetter() {
       currentLetterCount++;
-      document.getElementById('modal-hint').textContent = currentWord.slice(0, currentLetterCount) + '...';
+      document.getElementById('modal-letters').textContent = currentWord.slice(0, currentLetterCount) + '...';
+      document.getElementById('letter-btn').textContent = 'Next letter';
       if (currentLetterCount >= currentWord.length) {
-        document.getElementById('next-letter-btn').style.display = 'none';
+        document.getElementById('letter-btn').style.display = 'none';
       }
-    }
-
-    function showDefinition() {
-      document.getElementById('modal-hint').textContent = currentHint || '(no definition)';
-      document.getElementById('next-letter-btn').style.display = 'none';
-      document.getElementById('show-def-btn').style.display = 'none';
-      document.getElementById('reveal-btn').style.display = 'inline-block';
     }
 
     function revealWord() {
       document.getElementById('modal-word').style.display = 'block';
+      document.getElementById('letter-btn').style.display = 'none';
       document.getElementById('modal-actions').style.display = 'none';
       document.getElementById('rating').style.display = 'block';
     }
