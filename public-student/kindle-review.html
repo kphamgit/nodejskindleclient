@@ -49,8 +49,10 @@
   <div class="modal-overlay" id="modal">
     <div class="modal-box">
       <p class="modal-hint" id="modal-hint"></p>
+      <p class="modal-letters" id="modal-letters" style="font-size:1.2em;color:#555;margin:0 0 12px;"></p>
       <p class="modal-word" id="modal-word"></p>
       <div id="modal-actions">
+        <button id="letter-btn" onclick="showLetter()">First letter</button>
         <button class="reveal-btn" onclick="revealWord()">Reveal</button>
         <button onclick="closeModal()">Close</button>
       </div>
@@ -92,6 +94,7 @@
     var current = null;
     var ratedWords = {};
     var currentWord = '';
+    var currentLetterCount = 0;
 
     function tokenize(text) {
       return text.match(/\[[^\]]*\][.,!?;:]*|\S+/g) || [];
@@ -165,17 +168,30 @@
 
     function openModal(btn) {
       currentWord = btn.getAttribute('data-word');
-      var hint = btn.getAttribute('data-hint') || 'What is this word?';
-      document.getElementById('modal-hint').textContent = hint;
+      currentLetterCount = 0;
+      document.getElementById('modal-hint').textContent = btn.getAttribute('data-hint') || '(no definition)';
+      document.getElementById('modal-letters').textContent = '';
       document.getElementById('modal-word').textContent = currentWord;
       document.getElementById('modal-word').style.display = 'none';
+      document.getElementById('letter-btn').textContent = 'First letter';
+      document.getElementById('letter-btn').style.display = 'inline-block';
       document.getElementById('modal-actions').style.display = 'block';
       document.getElementById('rating').style.display = 'none';
       document.getElementById('modal').style.display = 'block';
     }
 
+    function showLetter() {
+      currentLetterCount++;
+      document.getElementById('modal-letters').textContent = currentWord.slice(0, currentLetterCount) + '...';
+      document.getElementById('letter-btn').textContent = 'Next letter';
+      if (currentLetterCount >= currentWord.length) {
+        document.getElementById('letter-btn').style.display = 'none';
+      }
+    }
+
     function revealWord() {
       document.getElementById('modal-word').style.display = 'block';
+      document.getElementById('letter-btn').style.display = 'none';
       document.getElementById('modal-actions').style.display = 'none';
       document.getElementById('rating').style.display = 'block';
     }
